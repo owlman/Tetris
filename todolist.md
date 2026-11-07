@@ -1,5 +1,7 @@
 # Tetris 项目改进待办清单
 
+> [!note] **说明**
+> 这是我让 Pi agent 分析项目之后，整理出来的改进建议清单。  
 > 生成时间：2026-11　基于对全量源码（`owlgame/`，约 700 行）的静态审查 + 两项实测探针验证
 > 配套文档：[`AGENTS.md`](AGENTS.md)（构建/编码/验证规范）　[`README.md`](README.md)（项目说明）
 
@@ -14,7 +16,7 @@
 - **现象**：`gameController` 构造函数中相邻创建 `now` 与 `wait` 两个 `block`，两者形状与颜色完全一致（预览框里看到的下一个块就是当前的块）。
 - **实测**（探针输出）：
 
-  ```
+  ```csharp
   now  shape = .....|.##..|..#..|..#..|.....| color=Yellow
   wait shape = .....|.##..|..#..|..#..|.....| color=Yellow
   shapes identical = True     colors identical = True
@@ -23,11 +25,14 @@
 
 - **根因**：`block.cs` 中 `private Random rander = new Random();` —— 每个 `block` 实例各建一个 `Random`；.NET Framework 无参构造以 `Environment.TickCount`（约 15ms 精度）作种子，15ms 内创建的多个实例序列相同。
 - **建议方案**：改为**静态共享**的随机源，并把取形状/取颜色拆成两次独立取值（避免颜色与形状强相关）：
+
   ```csharp
   private static readonly Random Rander = new Random();
   private static readonly object RanderLock = new object();
   ```
+
   取值时加锁（`Random` 非线程安全），或直接换成 `RNGCryptoServiceProvider` / `System.Security.Cryptography.RandomNumberGenerator` 取索引。
+
 - **附带问题**：`transpose()` 每次旋转都 `new block(...)` 只为复制矩阵，白白消耗随机序列 —— 改为浅拷贝矩阵即可。
 - **验证**：重跑探针，断言 `now` 与 `wait` 的形状/颜色**不相同**；连续创建 5 个 `block` 断言形状不全部相同。
 - **影响面**：`owlgame/block.cs`、`owlgame/gamecontroller.cs`（`transpose`）
@@ -170,7 +175,7 @@
 
 ## 建议执行顺序
 
-```
+```markdown
 第 1 轮（低风险、纯收益）   1 → 3 → 6 → 16 → 14
 第 2 轮（需要回归验证）     2（脏矩形）→ 5（回归脚本）
 第 3 轮（结构性改动）       4 → 7 → 8 → 11
