@@ -159,7 +159,7 @@ with open(path, 'w', encoding='utf-8-sig', newline='\r\n') as f:
 
 ## 架构要点
 
- ### 三个类，一条数据流
+### 三个类，一条数据流
 
 ```
 mainForm (UI + 事件)
