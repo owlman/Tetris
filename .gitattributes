@@ -1,0 +1,15 @@
+# 本项目源码编码与行尾策略（2026-11 统一）
+#
+# 历史原因：项目源于 VS2005 / .NET Framework 2.0 时代，
+# mainForm.cs / block.cs 原本是 GBK 编码，其余文件是 UTF-8，混用导致
+# 中文注释/字面量在不同编辑器与 csc 之间反复变成乱码。
+#
+# 现行约定：
+#   - 所有 .cs 源码：UTF-8 with BOM + CRLF 行尾
+#     （带 BOM 是为了 csc.exe / 旧版 MSBuild 能无歧义地按 UTF-8 读取）
+#   - .resx：UTF-8（内容为纯 ASCII）+ CRLF
+#   - 仓库中保存的文件与工作区字节级一致
+#
+# 因此禁用 git 的行尾自动转换，避免在 Windows / Linux 之间同步时
+# 出现整文件的行尾 diff。
+* -text

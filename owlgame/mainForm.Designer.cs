@@ -53,7 +53,7 @@
             this.gamewiew.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
                         | System.Windows.Forms.AnchorStyles.Left)
                         | System.Windows.Forms.AnchorStyles.Right)));
-            this.gamewiew.AutoSize = true;
+            this.gamewiew.AutoSize = false;
             this.gamewiew.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(64)))));
             this.gamewiew.Controls.Add(this.gaizi);
             this.gamewiew.Location = new System.Drawing.Point(3, 3);

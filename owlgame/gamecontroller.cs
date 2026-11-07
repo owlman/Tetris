@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Collections;
@@ -76,18 +76,10 @@ namespace owlgame
         }
         private void Invalidateblock()
         {
-            for (int i = 0; i < 2*block.size; ++i)
-                for (int j = 0; j < 2 * block.size; ++j)
-                {
-                       Rectangle rect = new Rectangle
-                        (
-                            (j + now.curx-4) * bw,
-                            (i + now.cury-4) * bh,
-                            bw, bh
-                        );
-                        view.Invalidate(rect);
-                    
-                }
+            // Repaint the whole board: with double buffering a full redraw
+            // leaves no seams, while partial invalidation can leave half cells
+            // (old code also computed the invalid rect with a wrong offset).
+            view.Invalidate();
         }
         public bool test(int mi,int mj,int[,]m) 
         {
@@ -101,6 +93,10 @@ namespace owlgame
         {            
             Pen pen = new Pen(view.BackColor);
             SolidBrush brush = new SolidBrush(Color.AliceBlue);
+            // With double buffering the system no longer erases the background
+            // for us, so fill it ourselves to avoid stale pixels / flickering.
+            using (SolidBrush bgBrush = new SolidBrush(view.BackColor))
+                e.Graphics.FillRectangle(bgBrush, view.ClientRectangle);
             for (int i = 0; i < lineNo; ++i)
                 for (int j = 0; j < rowNo; ++j)
                 {
@@ -187,6 +183,9 @@ namespace owlgame
         {
             Pen pen = new Pen(view.BackColor);
             SolidBrush brush = new SolidBrush(wait.colorblock);
+            // Same as draw(): clear the background before painting the preview.
+            using (SolidBrush bgBrush = new SolidBrush(box.BackColor))
+                e.Graphics.FillRectangle(bgBrush, box.ClientRectangle);
             for (int i = 0; i < block.size; ++i)
                 for (int j = 0; j < block.size; ++j)
                 {

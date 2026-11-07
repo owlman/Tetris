@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Drawing;
 using System.Collections.Generic;
 using System.Text;
@@ -18,16 +18,16 @@ namespace owlgame
                     matblock[i, j] = blockbox[no, i, j];
         }
         
-        public int[,] matblock = new int[size, size];         // ºĞ×Ó¾ØÕó
+        public int[,] matblock = new int[size, size];         // ç›’å­çŸ©é˜µ
         public Color colorblock;
-        public int curx,cury;                                 // ºĞ×ÓµÄÆğµã
-        public static int size = 5;                           // ºĞ×Ó¾ØÕóµÄÎ¬Êı
-        private const int No = 7;                             // ºĞ×ÓµÄÖÖÊı        
-        private Random rander = new Random();                 // Ëæ»úÑ¡ºĞÆ÷
-        private static Color[] boxcolors ={                   // Ô¤¶¨ÒåºĞ×ÓÑÕÉ«
+        public int curx,cury;                                 // ç›’å­çš„èµ·ç‚¹
+        public static int size = 5;                           // ç›’å­çŸ©é˜µçš„ç»´æ•°
+        private const int No = 7;                             // ç›’å­çš„ç§æ•°        
+        private Random rander = new Random();                 // éšæœºé€‰ç›’å™¨
+        private static Color[] boxcolors ={                   // é¢„å®šä¹‰ç›’å­é¢œè‰²
             Color.Red,Color.Yellow,Color.Blue
         }; 
-        private static int[,,] blockbox ={                     // Ô¤¶¨ÒåµÄºĞ×Ó
+        private static int[,,] blockbox ={                     // é¢„å®šä¹‰çš„ç›’å­
             {
                 {0,0,0,0,0},
                 {0,0,0,0,0},
