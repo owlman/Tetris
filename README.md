@@ -126,36 +126,6 @@ block (数据)
 
 ---
 
-## 闪烁问题的修复（2026-11）
-
-原始版本按下键时棋盘会闪。定位到三个根因，并做了如下修复：
-
-1. **擦除-重绘间隙**　→ 反射开启 `Control.DoubleBuffered`（递归到所有子控件）。
-2. **Windows 先擦背景再重画**　→ 反射调用 `SetStyle` 追加 `OptimizedDoubleBuffer | AllPaintingInWmPaint | Opaque`，断掉 `WM_ERASEBKGND`。
-3. **脏矩形偏移算错**（`(j + now.curx - 4) * bw` 多减了 4 格）→ `Invalidateblock()` 改为整块 `view.Invalidate()`。
-
-> ⚠️ **`Opaque` 是一个契约**：声明「我覆盖每一个像素」，因此自绘函数必须自己铺满整个背景。`draw()` / `drawwait()` 开头都加了 `FillRectangle(bgBrush, ClientRectangle)`。
->
-> 实例：`proimg_Paint` 原本是 `if (controller != null) controller.drawwait(...)`，初始界面 `controller == null` → 一帧不画 → 因为 `proimg` 带 `Opaque` 标志、Windows 不再替它擦背景 → 「下一个」下面那块预览窗格整个消失。修法是先无条件铺 `proimg.BackColor`，再画预览，最后补一圈灰色边框。**改动此函数时务必覆盖「未开局」与「游戏中」两个状态。**
-
-修复效果（`WM_ERASEBKGND` 消息计数）：从 **90 次降到 1 次**（剩余 1 次发生在构造函数执行前，样式标志尚未生效，属预期）。
-
----
-
-## 编码与行尾规范
-
-| 文件 | 编码 | BOM | 行尾 |
-| --- | --- | --- | --- |
-| `owlgame/**/*.cs` | UTF-8 | **有** | CRLF |
-| `owlgame/*.resx` | UTF-8（内容纯 ASCII） | 无 | CRLF |
-
-- 2026-11 之前，`mainForm.cs` 与 `block.cs` 是 **GBK 无 BOM**，其余是 UTF-8，混用导致中文在不同编辑器与 `csc` 之间反复乱码；现已全库统一。
-- **带 BOM 是刻意的**：`csc` 与旧版 MSBuild 读无 BOM 的源文件时按系统 ANSI 代码页（936）解释，UTF-8 中文会直接编译成乱码。
-- `.gitattributes` 中写了 `* -text`，禁用 git 的行尾自动转换，仓库字节与工作区保持完全一致。
-- **新增注释一律写英文**，可以顺带规避整个编码问题。
-
----
-
 ## 已知问题与设计上的怪癖
 
 | 现象 | 真相 |
