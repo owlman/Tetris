@@ -250,12 +250,12 @@ Block (数据 + 形状表)
 
 ## 验证方法（本项目没有单元测试，靠探针）
 
-> 📁 **回归探针已固化**，一键运行：`bash tests/run.sh`
-> - `tests/Round1Regression.cs` —— 逻辑（形状随机、配色、外链、Game Over）
-> - `tests/Round2Regression.cs` —— 绘制（GDI 句柄、局部重绘、脏区覆盖、**残影逐像素比对**）
-> - `tests/PixelSmoke.cs` —— 像素冒烟（墙体守恒、预览框、重玩）
+> 📁 **测试已工程化**，一键运行：`bash tests/run.sh`（`--skip-ui` / `--filter` / `--list`）
+> - `tests/framework/` —— 自制测试框架（`[Test]` / `[TestCase]` / `[Category]` / `Assert` / 反射运行器），零依赖、C# 5 兼容
+> - `tests/TetrisTests/` —— 57 个用例：`BlockTests` / `GameBoardTests` / `ScoreTests` / `UiTests`
+> - `tests/probes/` —— 像素探针，输出基线数字（不是 PASS/FAIL）：`Round2Regression`（残影逐像素比对、GDI 句柄）、`PixelSmoke`（墙体守恒）
 >
-> 探针各自带 `Main`，**不要**与 `owlgame/*.cs` 一起通配编译。用法与基线见 `tests/README.md`。
+> 逻辑用例直接 `new GameBoard(35)`，不要反射掏 `GameController` 的私有字段。UI 用例标 `[Category("UI")]`，headless 环境用 `--skip-ui` 跳过。脚本、基线、编写约定见 `tests/README.md`。
 
 不能靠肉眼看、也不能靠抓帧（闪烁是瞬态的，`DoEvents()` 之后画面已稳定，抓帧必然抓到正常帧）。可用的两条路：
 

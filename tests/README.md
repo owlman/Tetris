@@ -1,39 +1,67 @@
-# 回归探针
+# 测试
 
-本项目没有单元测试框架，验证靠探针程序（各自带 `Main`，因此**不能**和 `owlgame/*.cs` 一起通配编译）。
-
-| 文件 | 作用 |
-| --- | --- |
-| `Round1Regression.cs` | 逻辑回归：形状随机性、形状↔颜色映射、消行、边界拒绝、外链 scheme 校验、Game Over 后按钮状态。**第 3 轮起大部分断言直接驱动 `GameBoard`，不再靠反射** |
-| `Round2Regression.cs` | 绘制回归：GDI 句柄稳定性、局部重绘是否真的局部、脏区是否覆盖旧+新位置、增量重绘与全绘的逐像素一致性 |
-| `Round5Regression.cs` | 玩法回归：计分表、等级推进与乘数、下落间隔与下限、消行高亮状态机、分数读数 |
-| `PixelSmoke.cs` | 像素冒烟：墙体像素守恒（闪烁检测）、当前块/预览框绘制、重玩路径 |
+本项目没有 .NET SDK / MSBuild / NuGet，只有 .NET Framework 自带的 `csc.exe`（**C# 5**）。因此测试分两层：能脱离界面验证的走**单元测试**，需要像素/窗口的走**探针**。
 
 ## 一键运行
 
 ```bash
-bash tests/run.sh                  # 默认构建目录 C:\t_build
+bash tests/run.sh                  # 单元测试（含 UI）+ 像素探针
+bash tests/run.sh --skip-ui        # 跳过需要桌面会话的 UI 用例（CI 用这个）
+bash tests/run.sh --filter Board   # 只跑名字含 Board 的用例
+bash tests/run.sh --list           # 只列出用例名
 BUILD_DIR=/c/t2 bash tests/run.sh  # 自定义构建目录
 ```
 
-脚本会：清空构建目录 → 拷源码（csc 不支持中文路径）→ 编译 owlgame.exe → 编译全部探针 → 逐个运行 → 汇总。任一步失败即返回非零。
+退出码：全通过为 0，否则非 0。
 
-## 手工运行
+## 目录
 
-```bash
-cd /c/t_build
-MSYS_NO_PATHCONV=1 /c/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe \
-  /nologo /target:exe /out:probe_r2.exe /reference:owlgame.exe \
-  "<项目路径>/tests/Round2Regression.cs"
-./probe_r2.exe        # 结果同时写入 out_round2.txt（UTF-8），退出码 = 失败断言数
+```
+tests/
+├── framework/                  # 自制测试框架（约 500 行，零依赖）
+│   ├── TestAttributes.cs       # [Test] / [TestCase] / [Category]
+│   ├── Assert.cs               # AreEqual / IsTrue / Throws / DoesNotThrow ...
+│   └── TestRunner.cs           # 反射发现 + 运行 + 汇总
+├── TetrisTests/                # 用例
+│   ├── BlockTests.cs           # 形状表、随机性、旋转、拷贝构造
+│   ├── GameBoardTests.cs       # 墙、落位、移动、合并、消行、回合流转
+│   ├── ScoreTests.cs           # 计分表、等级、下落间隔
+│   └── UiTests.cs              # 需要窗口的用例（[Category("UI")]）
+├── probes/                     # 像素探针（输出基线数字，不是 PASS/FAIL）
+│   ├── Round2Regression.cs     # 增量重绘 vs 全绘逐像素比对、GDI 句柄
+│   └── PixelSmoke.cs           # 墙体像素守恒、预览框、重玩路径
+└── run.sh
 ```
 
-> 探针源码必须带 **UTF-8 BOM**，否则 `csc` 按 ANSI(936) 读会报一堆 `CS1513 / CS1519` 假语法错误。
-> `csc` v4.0.30319 是 **C# 5** 编译器：本地函数、`?.`、`$"..."` 都不支持。探针曾因为写了本地函数 `Bitmap FullPaint()` 而编译失败。
+## 为什么自己写框架（决策 D6）
 
-## 基线
+| 方案 | 结果 |
+| --- | --- |
+| xUnit | ❌ 要求 .NET 4.5.2+ |
+| NUnit 3.x | ⚠️ 要求 .NET 4.5+，与 4.0 运行时可能不兼容 |
+| NUnit 2.6.x | ✅ 可用，但要手动下载 dll 并入库 |
+| **自制框架** | ✅ 零依赖、完全适配 C# 5、与 `run.sh` 无缝衔接 |
 
-`PixelSmoke`（220×388 棋盘，`bw=11` / `bh=11`，**35 行**）：
+选自制：约 500 行（含注释），支持 `[Test]`、重复 `[TestCase(...)]` 参数化、`[Category("UI")]` 分组、`--filter` 筛选。语法足够用，且不会被框架版本卡住。
+
+运行器输出：
+
+```
+[PASS] GameBoardTests.ClearOneLine  0ms
+[FAIL] GameBoardTests.ClearNonAdjacentLines  0ms
+       Expected 0 item(s), got 1. no line left behind
+
+Results: 56 passed, 1 failed, 0 skipped, 57 total (1889 ms)
+```
+
+## 实测基线
+
+```
+单元测试（--skip-ui）：49 passed, 0 failed, 8 skipped, 57 total
+单元测试（完整）    ：57 passed, 0 failed, 0 skipped, 57 total
+```
+
+`PixelSmoke`（220×388 棋盘，`cellWidth=11` / `cellHeight=11`，**35 行**）：
 
 ```
 after start  : gray(walls)=17200  colored(block)=400  navy=67760
@@ -42,32 +70,41 @@ after restart: gray=17200 colored=400 navy=67760
 preview      : corner=(128,128,128)  inside=(0,0,64)
 ```
 
-**`gray` 一旦下降就代表擦除-重绘间隙出现，即闪烁回来了**；`colored` 下降代表方块没画出来。
+**`gray` 一旦下降就代表擦除-重绘间隙出现，即闪烁回来了**。
 
 `Round2Regression`：
 
 ```
-GDI objects: before=22 after 20 restarts=22           ← 重开 20 次句柄数不增长
-repaint rects: partial=79 full=0 (over 80 operations) ← 局部重绘生效，没有退化成全屏
-dirty rect covers old+new block: 0 / 80 uncovered     ← 脏区包含旧位置 ∪ 新位置
+GDI objects: before=22 after 20 restarts=22
+repaint rects: partial=79 full=0
+dirty rect covers old+new block: 0 / 80 uncovered
 ghost check: steps=80 stepsWithGhost=0 worstDiffPixels=0
 ```
 
-`ghost check` 是残影的决定性判据：它把真实 Paint 事件给出的脏区矩形重放到一张**内存画布**（等价于双缓冲的后台缓冲），再与同状态的全量重绘逐像素比较。脏区若算少了，画布上会留下旧像素，差异数立刻不为 0。
+> `ghost check` 把真实 Paint 事件的脏区重放到内存画布（等价于双缓冲后台缓冲），再与全量重绘逐像素比对。脏区算少 = 残影。
+> 不要用抓屏：DWM 半合成帧和 ±1 色阶抖动会产生大量假差异；也不要拿 `DrawToBitmap` 当基准，它走 `WM_PRINT`，笔对齐与屏幕路径差 1 像素。
 
-> 为什么不抓屏幕：`CopyFromScreen` 依赖窗口焦点、DWM 合成时机与是否被遮挡，实测会因半合成帧（灰墙与背景按 24% 混合）和 ±1 色阶抖动产生大量假差异。内存画布方案完全确定性，可在无人值守环境下运行。
-> 也不要拿 `DrawToBitmap` 当基准：它走 `WM_PRINT` 渲染路径，笔对齐与屏幕路径差 1 像素，会产生约 15000 个假差异。
+## 单元测试抓到的真实缺陷
 
-`Round1Regression` 中的形状随机性断言允许少量碰撞（20 次抽样里约 2~3 对相同属正常随机），但修复前是 **20/20 全同**。
+`ClearLines(IList<int>)` 曾用**降序**删除行：
 
-`Round5Regression` 的关键数值：
-
-```
-score for 1/2/3/4 line(s) = 100 / 300 / 500 / 800
-level: 9 lines -> 1, 10 lines -> 2, level 2 doubles the points (delta = 200)
-drop interval: level 1 = 1000 ms, level 2 = 910 ms, clamped at 120 ms
-flash: gametimer_Tick leaves the board in "highlighting" state with flashTimer
-       running; flashTimer_Tick clears the line and scores it
+```csharp
+for (int k = sorted.Count - 1; k >= 0; --k)   // 错
 ```
 
-> 注意地板行不可消：`FindFullLines()` / `ClearLines()` 只检查 `i < lineCount - FloorThickness`。写探针填行时要用最后一个可消行（35 行棋盘是第 32 行），填地板行不会触发消行。
+`RemoveAt(line)` 紧跟 `Insert(0, ...)` 的净效果是「索引 < 被删行的上移一格、其余不动」。降序删除时，第一次删除就把较小索引整体上移了，第二次再按原始行号删，实际删到的是空行 —— 非连续满行只能消掉一半。
+
+升序处理才对。这个 bug 在第二轮重构时引入，之前所有探针都没抓到，因为它们只断言 `ClearLines()` 的**返回值**等于预期数量（返回值就是入参长度，无论删对没删对都是对的）。新用例补了「消完之后不应再有满行」的断言，立刻暴露。
+
+## GitHub Actions
+
+`.github/workflows/ci.yml`：`windows-latest` + `--skip-ui`。
+
+CI 只跑逻辑用例 —— runner 是 session 0，没有交互式桌面，`Form.Show()` 与消息循环相关断言不可靠。
+
+## 编写约定
+
+- 测试源码必须是 **UTF-8 with BOM**，否则 `csc` 按 ANSI(936) 读会报一堆 `CS1513 / CS1519` 假语法错误；
+- 只用 **C# 5** 语法：不能本地函数、`?.`、`$"..."`；
+- 断言文案写清楚「期望什么、为什么」，失败时不用回头读代码；
+- 逻辑用例优先直接 `new GameBoard(35)`，不要反射掏 `GameController` 的私有字段 —— 那是 UI 层的事。

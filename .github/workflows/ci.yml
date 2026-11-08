@@ -1,0 +1,54 @@
+name: CI
+
+# 单元测试 + 像素探针。
+#
+# 只跑逻辑测试：GitHub 的 windows runner 是 session 0（没有交互式桌面），
+# 需要 Form.Show() 与消息循环的 UI 用例在这里不可靠，所以用 --skip-ui 跳过。
+# 本地跑完整套：bash tests/run.sh
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        shell: bash
+        run: |
+          CSC="/c/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe"
+          if [ ! -x "$CSC" ]; then
+            echo "csc.exe not found at $CSC"
+            ls "/c/Windows/Microsoft.NET/Framework64/" || true
+            exit 1
+          fi
+          "$CSC" 2>&1 | head -2 || true
+          bash --version | head -1
+
+      - name: Build and run checks
+        shell: bash
+        run: |
+          # run.sh 需要一个纯 ASCII 的构建目录（csc 不支持中文路径），
+          # 这里用临时目录，避免与 runner 上其它东西冲突。
+          export BUILD_DIR="$(mktemp -d)"
+          echo "BUILD_DIR=$BUILD_DIR"
+          bash tests/run.sh --skip-ui
+
+      - name: Upload probe output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-output
+          path: |
+            ${{ runner.temp }}/**/out_*.txt
+          if-no-files-found: ignore
+          retention-days: 7
