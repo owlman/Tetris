@@ -48,6 +48,42 @@ namespace TetrisTests
             return s;
         }
 
+        private static int MinFilledRow(Block block)
+        {
+            for (int i = 0; i < Block.MatrixSize; i++)
+                for (int j = 0; j < Block.MatrixSize; j++)
+                    if (block.Matrix[i, j] == GameBoard.Settled)
+                        return i;
+            return -1;
+        }
+
+        private static int MaxFilledRow(Block block)
+        {
+            for (int i = Block.MatrixSize - 1; i >= 0; i--)
+                for (int j = 0; j < Block.MatrixSize; j++)
+                    if (block.Matrix[i, j] == GameBoard.Settled)
+                        return i;
+            return -1;
+        }
+
+        private static int MinFilledColumn(Block block)
+        {
+            for (int j = 0; j < Block.MatrixSize; j++)
+                for (int i = 0; i < Block.MatrixSize; i++)
+                    if (block.Matrix[i, j] == GameBoard.Settled)
+                        return j;
+            return -1;
+        }
+
+        private static int MaxFilledColumn(Block block)
+        {
+            for (int j = Block.MatrixSize - 1; j >= 0; j--)
+                for (int i = 0; i < Block.MatrixSize; i++)
+                    if (block.Matrix[i, j] == GameBoard.Settled)
+                        return j;
+            return -1;
+        }
+
         private static int CountSettled(GameBoard board)
         {
             int n = 0;
@@ -365,6 +401,228 @@ namespace TetrisTests
             Assert.AreEqual(GameBoard.Wall, board.CellAt(0, 0), "left wall restored");
             Assert.AreEqual(GameBoard.Wall, board.CellAt(0, GameBoard.Columns - 1), "right wall restored");
             Assert.IsTrue(AllWalls(board), "all walls intact after a clear");
+        }
+
+        // ---------- exact wall contact (item 22) ----------
+        //
+        // The earlier tests pushed a block past the board (column -1,
+        // column = Columns). Those are out-of-range checks, not wall contact:
+        // a block can be at a perfectly legal column and still overlap the wall
+        // because its filled cells do not start at matrix column 0.
+        //
+        // These tests compute the real filled bounds of the block and place it
+        // flush against the wall (must fail) and flush against the last playable
+        // cell (must fit).
+
+        [Test]
+        public void CannotPlaceFlushAgainstTheLeftWall()
+        {
+            HashSet<int> seenMinColumns = new HashSet<int>();
+
+            for (int k = 0; k < 300; k++)
+            {
+                GameBoard board = new GameBoard(Lines);
+                Block block = board.Current;
+                int minJ = MinFilledColumn(block);
+                seenMinColumns.Add(minJ);
+
+                // leftmost filled cell lands on column 0, which is wall
+                int againstWall = -minJ;
+                Assert.IsFalse(board.CanPlace(againstWall, 5, block.Matrix),
+                    "shape minJ=" + minJ + " at column " + againstWall
+                    + " overlaps the left wall");
+
+                // leftmost filled cell lands on the first playable column
+                int firstPlayable = GameBoard.WallThickness - minJ;
+                Assert.IsTrue(board.CanPlace(firstPlayable, 5, block.Matrix),
+                    "shape minJ=" + minJ + " at column " + firstPlayable + " must fit");
+            }
+
+            Assert.IsTrue(seenMinColumns.Count >= 2,
+                "the sample should include shapes with different left padding, saw "
+                + seenMinColumns.Count + " values");
+        }
+
+        [Test]
+        public void CannotPlaceFlushAgainstTheRightWall()
+        {
+            int lastPlayable = GameBoard.Columns - GameBoard.WallThickness - 1;
+
+            for (int k = 0; k < 300; k++)
+            {
+                GameBoard board = new GameBoard(Lines);
+                Block block = board.Current;
+                int maxJ = MaxFilledColumn(block);
+
+                // rightmost filled cell lands on the last column, which is wall
+                int againstWall = GameBoard.Columns - 1 - maxJ;
+                Assert.IsFalse(board.CanPlace(againstWall, 5, block.Matrix),
+                    "shape maxJ=" + maxJ + " at column " + againstWall
+                    + " overlaps the right wall");
+
+                // rightmost filled cell lands on the last playable column
+                int flushRight = lastPlayable - maxJ;
+                Assert.IsTrue(board.CanPlace(flushRight, 5, block.Matrix),
+                    "shape maxJ=" + maxJ + " at column " + flushRight + " must fit");
+            }
+        }
+
+        [Test]
+        public void CannotPlaceFlushAgainstTheFloor()
+        {
+            int floorTop = Lines - GameBoard.FloorThickness;
+
+            for (int k = 0; k < 300; k++)
+            {
+                GameBoard board = new GameBoard(Lines);
+                Block block = board.Current;
+                int maxI = MaxFilledRow(block);
+
+                // lowest filled cell lands on the first floor line
+                int onFloor = floorTop - maxI;
+                Assert.IsFalse(board.CanPlace(8, onFloor, block.Matrix),
+                    "shape maxI=" + maxI + " at row " + onFloor + " overlaps the floor");
+
+                // lowest filled cell lands on the last playable line
+                Assert.IsTrue(board.CanPlace(8, onFloor - 1, block.Matrix),
+                    "shape maxI=" + maxI + " at row " + (onFloor - 1) + " must fit");
+            }
+        }
+
+        [Test]
+        public void CannotPlaceAboveTheBoard()
+        {
+            for (int k = 0; k < 120; k++)
+            {
+                GameBoard board = new GameBoard(Lines);
+                Block block = board.Current;
+                int minI = MinFilledRow(block);
+
+                // topmost filled cell would sit on row 0, so the matrix origin is
+                // negative: the block would be half outside the board
+                int aboveBoard = -minI - 1;
+                Assert.IsFalse(board.CanPlace(8, aboveBoard, block.Matrix),
+                    "shape minI=" + minI + " at row " + aboveBoard + " is outside the board");
+            }
+        }
+
+        [Test]
+        public void FailedMoveDownLeavesTheStateUntouched()
+        {
+            // MoveDownStopsAtTheFloor only asserted the return value; the point of
+            // a rejected move is that nothing moved.
+            GameBoard board = new GameBoard(Lines);
+            while (board.MoveDown(1)) { }
+
+            Block block = board.Current;
+            int row = block.Row;
+            int column = block.Column;
+            string matrix = Matrix(block);
+
+            Assert.IsFalse(board.MoveDown(1), "a landed block cannot move down");
+            Assert.AreEqual(row, block.Row, "row unchanged after a rejected MoveDown");
+            Assert.AreEqual(column, block.Column, "column unchanged after a rejected MoveDown");
+            Assert.AreEqual(matrix, Matrix(block), "matrix unchanged after a rejected MoveDown");
+        }
+
+        [Test]
+        public void MergeWritesEveryCellAtTheRightPosition()
+        {
+            GameBoard board = new GameBoard(Lines);
+            while (board.MoveDown(1)) { }
+
+            Block block = board.Current;
+            int originRow = block.Row;
+            int originColumn = block.Column;
+
+            int filled = 0;
+            for (int i = 0; i < Block.MatrixSize; i++)
+                for (int j = 0; j < Block.MatrixSize; j++)
+                    if (block.Matrix[i, j] == GameBoard.Settled)
+                        filled++;
+
+            int settledBefore = CountSettled(board);
+            board.Merge();
+
+            Assert.AreEqual(settledBefore + filled, CountSettled(board),
+                "merging added exactly the filled cells");
+
+            // every filled matrix cell must be settled at its absolute position
+            for (int i = 0; i < Block.MatrixSize; i++)
+                for (int j = 0; j < Block.MatrixSize; j++)
+                    if (block.Matrix[i, j] == GameBoard.Settled)
+                        Assert.AreEqual(GameBoard.Settled,
+                            board.CellAt(originRow + i, originColumn + j),
+                            "cell (" + (originRow + i) + "," + (originColumn + j)
+                            + ") of the block must be settled");
+        }
+
+        [Test]
+        public void MergeNeverOverwritesWalls()
+        {
+            GameBoard board = new GameBoard(Lines);
+            while (board.MoveDown(1)) { }
+            board.Merge();
+
+            // the walls and the floor must still be walls, not settled cells
+            Assert.IsTrue(AllWalls(board), "merging must not turn wall cells into settled cells");
+            Assert.AreEqual(GameBoard.Wall, board.CellAt(0, 0), "top left corner still wall");
+            Assert.AreEqual(GameBoard.Wall, board.CellAt(Lines - 1, 10), "floor still wall");
+        }
+
+        [Test]
+        public void ResetWallsRestoresEveryWallCell()
+        {
+            GameBoard board = new GameBoard(Lines);
+
+            // knock some walls out, as a stray write would
+            board.Cells[0][0] = GameBoard.Empty;
+            board.Cells[0][GameBoard.Columns - 1] = GameBoard.Empty;
+            board.Cells[Lines - 1][10] = GameBoard.Empty;
+            Assert.IsFalse(AllWalls(board), "precondition: walls were damaged");
+
+            board.ResetWalls();
+
+            Assert.IsTrue(AllWalls(board), "ResetWalls restores every wall cell");
+        }
+
+        [Test]
+        public void ClearLinesWithAnExplicitListRemovesThoseLines()
+        {
+            // ClearLines() (no argument) is covered, but the overload that takes
+            // an explicit list - the one the clear-line animation uses - was not.
+            GameBoard board = new GameBoard(Lines);
+            board.Cells[20][5] = GameBoard.Settled;
+
+            List<int> toClear = new List<int> { 20 };
+            Assert.AreEqual(1, board.ClearLines(toClear), "one line removed");
+            Assert.AreEqual(GameBoard.Empty, board.CellAt(20, 5),
+                "line 20 was pushed away; its old content is gone");
+        }
+
+        [Test]
+        public void ClearLinesWithAnEmptyListChangesNothing()
+        {
+            GameBoard board = new GameBoard(Lines);
+            board.Cells[20][5] = GameBoard.Settled;
+
+            Assert.AreEqual(0, board.ClearLines(new List<int>()), "nothing removed");
+            Assert.AreEqual(GameBoard.Settled, board.CellAt(20, 5), "board untouched");
+        }
+
+        [Test]
+        public void ClearLinesIgnoresOutOfRangeIndices()
+        {
+            GameBoard board = new GameBoard(Lines);
+
+            List<int> toClear = new List<int>();
+            toClear.Add(-1);
+            toClear.Add(Lines + 5);
+            toClear.Add(Lines - 1);      // floor line: not clearable
+            toClear.Add(Lines - 2);      // last floor-adjacent line above the floor is still floor
+
+            Assert.AreEqual(0, board.ClearLines(toClear), "every index rejected");
+            Assert.IsTrue(AllWalls(board), "board untouched");
         }
 
         // ---------- turn flow ----------

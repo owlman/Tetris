@@ -200,6 +200,89 @@ namespace TetrisTests
         }
 
         [Test]
+        public void ControllerExposesTheCellGeometry()
+        {
+            using (MainForm form = OpenForm())
+            {
+                ((Button)Field(form, "buttonstart")).PerformClick();
+                Settle();
+
+                GameController controller = (GameController)Field(form, "controller");
+                Panel view = (Panel)Field(form, "gamewiew");
+
+                Assert.AreEqual(view.Width / GameBoard.Columns, controller.CellWidth,
+                    "cell width is the view width divided by the column count");
+
+                int expectedLines = GameBoard.Columns * view.Height / view.Width;
+                Assert.AreEqual(view.Height / expectedLines, controller.CellHeight,
+                    "cell height is the view height divided by the line count");
+            }
+        }
+
+        [Test]
+        public void ControllerDelegatesTheBoardRules()
+        {
+            using (MainForm form = OpenForm())
+            {
+                Button start = (Button)Field(form, "buttonstart");
+                Timer clock = (Timer)Field(form, "gametimer");
+                start.PerformClick();
+                Settle();
+                clock.Enabled = false;
+
+                GameController controller = (GameController)Field(form, "controller");
+                GameBoard board = controller.Board;
+
+                // Down / Move / Rotate
+                int row = board.Current.Row;
+                Assert.IsTrue(controller.Down(1), "Down delegates to MoveDown");
+                Assert.AreEqual(row + 1, board.Current.Row, "row advanced by Down");
+
+                int column = board.Current.Column;
+                controller.Move(true);
+                Assert.AreEqual(column + 1, board.Current.Column, "column advanced by Move");
+
+                Assert.IsFalse(controller.IsGameOver(), "a fresh board is playable");
+
+                // FindFullLines
+                Assert.AreEqual(0, controller.FindFullLines().Count,
+                    "FindFullLines reports nothing on an empty board");
+
+                // HighlightLines / IsHighlighting / ClearLines(IList)
+                System.Collections.Generic.List<int> lines =
+                    new System.Collections.Generic.List<int>();
+                lines.Add(20);
+                Assert.IsFalse(controller.IsHighlighting, "no highlight before asking");
+                controller.HighlightLines(lines);
+                Assert.IsTrue(controller.IsHighlighting, "highlighting after HighlightLines");
+                Assert.AreEqual(1, controller.ClearLines(lines), "the listed line was removed");
+                Assert.IsFalse(controller.IsHighlighting, "ClearLines drops the highlight");
+
+                // Merge
+                while (board.MoveDown(1)) { }
+                int settledBefore = CountSettled(board);
+                controller.Merge();
+                Assert.AreEqual(settledBefore + 4, CountSettled(board),
+                    "Merge writes the block into the board");
+
+                // Advance
+                Block previousNext = board.Next;
+                controller.Advance();
+                Assert.IsSame(previousNext, board.Current, "Advance promotes the preview block");
+            }
+        }
+
+        private static int CountSettled(GameBoard board)
+        {
+            int n = 0;
+            for (int i = 0; i < board.LineCount; i++)
+                for (int j = 0; j < GameBoard.Columns; j++)
+                    if (board.CellAt(i, j) == GameBoard.Settled)
+                        n++;
+            return n;
+        }
+
+        [Test]
         public void PreviewPaneIsPaintedBeforeTheGameStarts()
         {
             // The Opaque style flag means Windows does not erase the pane, so the

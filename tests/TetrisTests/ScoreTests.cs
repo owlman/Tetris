@@ -197,6 +197,42 @@ namespace TetrisTests
         }
 
         [Test]
+        public void DropIntervalClampsExactlyAtLevelEleven()
+        {
+            // The formula is 1000 - (level - 1) * 90, so level 10 gives 190 and
+            // level 11 gives 100 - which is below the 120 floor. The clamp
+            // therefore kicks in at level 11, and that crossing point used to be
+            // untested (only level 1, 2 and the fully clamped 13 were).
+            GameBoard board = new GameBoard(Lines);
+
+            for (int k = 0; k < 90; k++)
+            {
+                FillLine(board, 20);
+                board.ClearLines();
+            }
+            Assert.AreEqual(10, board.Level, "90 lines is level 10");
+            Assert.AreEqual(190, board.DropInterval, "level 10 still follows the formula");
+
+            for (int k = 0; k < 10; k++)
+            {
+                FillLine(board, 20);
+                board.ClearLines();
+            }
+            Assert.AreEqual(11, board.Level, "100 lines is level 11");
+            Assert.AreEqual(GameBoard.MinDropInterval, board.DropInterval,
+                "level 11 formula would give 100, clamped up to " + GameBoard.MinDropInterval);
+
+            for (int k = 0; k < 10; k++)
+            {
+                FillLine(board, 20);
+                board.ClearLines();
+            }
+            Assert.AreEqual(12, board.Level, "110 lines is level 12");
+            Assert.AreEqual(GameBoard.MinDropInterval, board.DropInterval,
+                "still clamped at level 12");
+        }
+
+        [Test]
         public void ClearingNothingScoresNothing()
         {
             GameBoard board = new GameBoard(Lines);

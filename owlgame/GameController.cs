@@ -137,13 +137,6 @@ namespace owlgame
             return board.ClearLines(linesToClear);
         }
 
-        /// <summary>Drop every complete line; returns how many were removed.</summary>
-        public int ClearLines()
-        {
-            highlightedLines = null;
-            return board.ClearLines();
-        }
-
         /// <summary>Promote the preview block to the falling block.</summary>
         public void Advance()
         {

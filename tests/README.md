@@ -57,8 +57,8 @@ Results: 56 passed, 1 failed, 0 skipped, 57 total (1889 ms)
 ## 实测基线
 
 ```
-单元测试（--skip-ui）：49 passed, 0 failed, 8 skipped, 57 total
-单元测试（完整）    ：57 passed, 0 failed, 0 skipped, 57 total
+单元测试（--skip-ui）：63 passed, 0 failed, 8 skipped, 71 total
+单元测试（完整）    ：71 passed, 0 failed, 0 skipped, 71 total
 ```
 
 `PixelSmoke`（220×388 棋盘，`cellWidth=11` / `cellHeight=11`，**35 行**）：
@@ -107,4 +107,5 @@ CI 只跑逻辑用例 —— runner 是 session 0，没有交互式桌面，`For
 - 测试源码必须是 **UTF-8 with BOM**，否则 `csc` 按 ANSI(936) 读会报一堆 `CS1513 / CS1519` 假语法错误；
 - 只用 **C# 5** 语法：不能本地函数、`?.`、`$"..."`；
 - 断言文案写清楚「期望什么、为什么」，失败时不用回头读代码；
-- 逻辑用例优先直接 `new GameBoard(35)`，不要反射掏 `GameController` 的私有字段 —— 那是 UI 层的事。
+- 逻辑用例优先直接 `new GameBoard(35)`，不要反射掏 `GameController` 的私有字段 —— 那是 UI 层的事；
+- **测边界时不要猜行号/列号**：方块矩阵的填充行列不从 0 开始，先用 `MinFilledColumn` / `MaxFilledColumn` / `MinFilledRow` / `MaxFilledRow` 算出真实范围，再构造「刚好顶到墙」与「刚好贴着最后一个可玩格」两个位置各断言一次。只测 `column = -1` 那种越界情况，证明不了「合法列号上的贴墙」也被拒绝。
