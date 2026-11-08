@@ -12,6 +12,13 @@ namespace owlgame
     public partial class mainForm : Form
     {
         private gameController controller;
+
+        // Diagnostic channel. Reflection based styling and link handling are
+        // best effort, but a silent failure would hide the flicker quietly
+        // coming back. Trace.WriteLine alone is not enough: it carries
+        // [Conditional("TRACE")], so the call is removed entirely unless TRACE
+        // is defined. This field is observable in every build.
+        internal static string diagnostics = null;
         public mainForm()
         {            
             InitializeComponent();
@@ -39,7 +46,10 @@ namespace owlgame
                 if (prop != null)
                     prop.SetValue(control, true, null);
             }
-            catch (Exception) { }
+            catch (Exception ex)
+            {
+                ReportSetupFailure("DoubleBuffered", ex);
+            }
 
             foreach (Control child in control.Controls)
                 EnableDoubleBuffer(child);
@@ -82,16 +92,53 @@ namespace owlgame
                     setStyle.Invoke(control, new object[] { styles, true });
                 }
             }
-            catch (Exception) { }
+            catch (Exception ex)
+            {
+                ReportSetupFailure("SetStyle", ex);
+            }
+        }
+
+        private static void ReportSetupFailure(string member, Exception ex)
+        {
+            ReportProblem(member + ": " + ex.GetType().Name + ": " + ex.Message, true);
+        }
+
+        /// <summary>
+        /// Append a problem to the diagnostic channel (always observable), echo
+        /// it to Trace when the build defines TRACE, and optionally alert the
+        /// user. Set OWLGAME_DIAG=1 in the environment to enable the alert.
+        /// </summary>
+        private static void ReportProblem(string message, bool alert)
+        {
+            if (diagnostics == null)
+                diagnostics = message;
+            else
+                diagnostics += " | " + message;
+
+            System.Diagnostics.Trace.WriteLine("[owlgame] " + message);
+
+            if (alert && Environment.GetEnvironmentVariable("OWLGAME_DIAG") == "1")
+                MessageBox.Show(message, "owlgame diagnostics",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
         private void myweb_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            if (this.myweb.Tag != null)
+            if (this.myweb.Tag == null)
+                return;
+
+            string url = this.myweb.Tag.ToString();
+            Uri uri;
+            // Only hand http / https to the shell. A Tag holding a local path
+            // or a custom scheme would otherwise launch arbitrary programs.
+            if (!Uri.TryCreate(url, UriKind.Absolute, out uri)
+                || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             {
-                string url = this.myweb.Tag.ToString();
-                System.Diagnostics.Process.Start(url);
+                ReportProblem("refused to open non-http(s) link: " + url, false);
+                return;
             }
+
+            System.Diagnostics.Process.Start(uri.AbsoluteUri);
         }
 
         private void buttonstart_Click(object sender, EventArgs e)
@@ -141,7 +188,11 @@ namespace owlgame
                     gametimer.Enabled = false;
                     gaizi.Show();
                     welcomelabel.Text = "你失败了…";
-                    buttonstart.Enabled = false; ;
+                    // Keep the start button usable and restore its caption so a
+                    // single click starts the next round; it used to be disabled,
+                    // leaving "重玩" as the only way out.
+                    buttonstart.Enabled = true;
+                    buttonstart.Text = "开始(&E)";
                     gaizi.Focus();
                 }
                 else

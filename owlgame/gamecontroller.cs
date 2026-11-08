@@ -62,8 +62,9 @@ namespace owlgame
         }
         public void transpose()
         {
-            block temp = new block(now.curx, now.cury);
-            temp.colorblock = now.colorblock;
+            // Copy constructor: keeps shape / colour while leaving the random
+            // source untouched (see block.block(block)).
+            block temp = new block(now);
             for (int i = 0; i < block.size; ++i)
                 for (int j = block.size-1; j >= 0; --j)
                     temp.matblock[j, i] =  now.matblock[i, block.size-1 - j];
