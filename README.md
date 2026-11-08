@@ -166,9 +166,3 @@ Block (数据)
 [MIT License](LICENSE) © 2006-2026 owlman
 
 可以自由使用、修改、分发，包括商业用途，只需保留版权声明与许可证副本。
-
-## 相关资料
-
-- **实验笔记**：[《WinForms 自绘控件闪烁问题的定位与修复》](../../02.实验笔记/WinForms%20自绘控件闪烁问题的定位与修复.md) —— 闪烁问题的完整定位过程与像素级验证方法
-- **姊妹实现**：[`../python/tetris.py`](../python/tetris.py) —— Python + pygame 版，与 C# 版互不引用
-- **Agent 工作指引**：[`AGENTS.md`](AGENTS.md) —— 构建流程、编码规范、验证方法、踩坑清单
