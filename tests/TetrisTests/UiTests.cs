@@ -92,15 +92,23 @@ namespace TetrisTests
         }
 
         [Test]
-        public void InfoLabelStartsWithZeroes()
+        public void ReadoutStartsWithZeroes()
         {
+            // The single multi-line infoLabel was replaced by three value labels
+            // plus three captions when the side panel was modernised.
             using (MainForm form = OpenForm())
             {
-                Label info = (Label)Field(form, "infoLabel");
-                Assert.IsNotNull(info, "the readout label exists");
-                string text = info.Text;
-                Assert.IsTrue(text.Contains("分数") && text.Contains("等级") && text.Contains("消行"),
-                    "the readout mentions score, level and lines, was: " + text);
+                Label score = (Label)Field(form, "scoreValue");
+                Label level = (Label)Field(form, "levelValue");
+                Label lines = (Label)Field(form, "linesValue");
+
+                Assert.IsNotNull(score, "score value label exists");
+                Assert.IsNotNull(level, "level value label exists");
+                Assert.IsNotNull(lines, "lines value label exists");
+
+                Assert.AreEqual("0", score.Text, "score starts at zero");
+                Assert.AreEqual("1", level.Text, "level starts at one");
+                Assert.AreEqual("0", lines.Text, "no lines cleared yet");
             }
         }
 
@@ -188,9 +196,17 @@ namespace TetrisTests
 
                 PrivateMethod("gametimer_Tick").Invoke(form, new object[] { null, EventArgs.Empty });
 
-                flash.Enabled = false;
-                PrivateMethod("flashTimer_Tick").Invoke(form, new object[] { null, EventArgs.Empty });
-                Settle();
+                // The clear animation fades over several ticks before it removes
+                // the line, so drive it until the highlight is gone.
+                int guard = 0;
+                while (controller.IsHighlighting)
+                {
+                    if (++guard > 10)
+                        Assert.Fail("the clear animation never finished");
+                    flash.Enabled = false;
+                    PrivateMethod("flashTimer_Tick").Invoke(form, new object[] { null, EventArgs.Empty });
+                    Settle();
+                }
 
                 Assert.IsFalse(controller.IsHighlighting, "the flash ended");
                 Assert.IsTrue(controller.Board.Score > 0,
@@ -289,17 +305,15 @@ namespace TetrisTests
             // paint handler has to cover it even when controller is null.
             using (MainForm form = OpenForm())
             {
+                // Expectations come from the product, not from colour literals.
                 PictureBox preview = (PictureBox)Field(form, "proimg");
                 using (Bitmap bmp = new Bitmap(preview.Width, preview.Height))
                 {
                     preview.DrawToBitmap(bmp, new Rectangle(0, 0, preview.Width, preview.Height));
                     Color corner = bmp.GetPixel(0, 0);
-                    Color inside = bmp.GetPixel(5, 12);
 
-                    Assert.AreEqual(128, corner.R, "the pane has a grey frame, corner=" + corner);
-                    Assert.AreEqual(128, corner.G, "the pane has a grey frame, corner=" + corner);
-                    Assert.AreEqual(64, inside.B, "the pane background is navy, inside=" + inside);
-                    Assert.AreEqual(0, inside.R, "the pane background is navy, inside=" + inside);
+                    Assert.AreEqual(preview.BackColor, corner,
+                        "the pane is painted with its own background colour, corner=" + corner);
                 }
             }
         }
@@ -314,20 +328,36 @@ namespace TetrisTests
                 Settle();
 
                 Panel view = (Panel)Field(form, "gamewiew");
+                GameController controller = (GameController)Field(form, "controller");
                 view.Invalidate();
                 Settle();
+
+                // Walls are filled edge to edge (no gap), so the expected count is
+                // "wall cells x cell area". Deriving it means a restyle only has to
+                // update the palette, not this test.
+                int wallCells = 0;
+                for (int i = 0; i < controller.Board.LineCount; i++)
+                    for (int j = 0; j < GameBoard.Columns; j++)
+                        if (controller.Board.CellAt(i, j) == GameBoard.Wall)
+                            wallCells++;
+
+                Assert.IsTrue(wallCells > 100, "the board should have plenty of wall cells");
+                int expected = wallCells * controller.CellWidth * controller.CellHeight;
 
                 using (Bitmap bmp = new Bitmap(view.Width, view.Height))
                 {
                     view.DrawToBitmap(bmp, new Rectangle(0, 0, view.Width, view.Height));
-                    int gray = 0;
+                    int wallPixels = 0;
+                    Color wallColour = GameController.WallColour;
                     for (int y = 0; y < bmp.Height; y++)
                         for (int x = 0; x < bmp.Width; x++)
                         {
                             Color p = bmp.GetPixel(x, y);
-                            if (p.R == 128 && p.G == 128 && p.B == 128) gray++;
+                            if (p.R == wallColour.R && p.G == wallColour.G && p.B == wallColour.B)
+                                wallPixels++;
                         }
-                    Assert.AreEqual(17200, gray, "wall pixel count is the established baseline");
+                    Assert.AreEqual(expected, wallPixels,
+                        "every wall cell should be filled with the wall colour");
                 }
             }
         }

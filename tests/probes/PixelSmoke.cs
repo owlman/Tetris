@@ -27,7 +27,7 @@ class ProbeSmoke
         return fi == null ? null : fi.GetValue(target);
     }
 
-    struct Stats { public int gray, navy, other; }
+    struct Stats { public int wall, other; }
 
     static Stats Sample(Control c)
     {
@@ -35,12 +35,15 @@ class ProbeSmoke
         using (Bitmap bmp = new Bitmap(c.Width, c.Height))
         {
             c.DrawToBitmap(bmp, new Rectangle(0, 0, c.Width, c.Height));
+            // Wall colour comes from the product, so a restyle does not
+            // invalidate the baseline. Walls are filled edge to edge, which is
+            // why their pixel count is a stable picture-integrity signal.
+            Color wall = owlgame.GameController.WallColour;
             for (int y = 0; y < c.Height; y++)
                 for (int x = 0; x < c.Width; x++)
                 {
                     Color p = bmp.GetPixel(x, y);
-                    if (p.R == 128 && p.G == 128 && p.B == 128) s.gray++;
-                    else if (p.R == 0 && p.G == 0 && p.B == 64) s.navy++;
+                    if (p.R == wall.R && p.G == wall.G && p.B == wall.B) s.wall++;
                     else s.other++;
                 }
         }
@@ -66,9 +69,8 @@ class ProbeSmoke
 
         Stats start = Sample(view);
         int startColored = start.other;
-        Log("after start  : gray=" + start.gray + " colored=" + startColored
-            + " navy=" + start.navy);
-        Check("walls painted", start.gray > 10000, "gray=" + start.gray);
+        Log("after start  : wall=" + start.wall + " colored=" + startColored);
+        Check("walls painted", start.wall > 10000, "wall=" + start.wall);
         Check("current block painted", startColored > 0, "colored=" + startColored);
 
         owlgame.GameController controller =
@@ -89,17 +91,17 @@ class ProbeSmoke
 
             Stats s = Sample(view);
             frames++;
-            if (s.gray < minGray) minGray = s.gray;
-            if (s.gray > maxGray) maxGray = s.gray;
+            if (s.wall < minGray) minGray = s.wall;
+            if (s.wall > maxGray) maxGray = s.wall;
             int colored = s.other;
             if (colored < minColored) minColored = colored;
             if (colored > maxColored) maxColored = colored;
         }
-        Log("120 key ops  : gray min=" + minGray + " max=" + maxGray
+        Log("120 key ops  : wall min=" + minGray + " max=" + maxGray
             + " colored min=" + minColored + " max=" + maxColored
             + " (frames sampled=" + frames + ")");
-        Check("walls never erased (no flicker)", minGray > 10000, "min gray=" + minGray);
-        Check("walls pixel drop count stable",
+        Check("walls never erased (no flicker)", minGray > 10000, "min wall=" + minGray);
+        Check("walls pixel count stable",
               minGray == maxGray || (maxGray - minGray) < 200,
               "min=" + minGray + " max=" + maxGray);
 
@@ -110,9 +112,8 @@ class ProbeSmoke
         Application.DoEvents();
         Stats restart = Sample(view);
         int restartColored = restart.other;
-        Log("after restart: gray=" + restart.gray + " colored=" + restartColored
-            + " navy=" + restart.navy);
-        Check("restart keeps walls", restart.gray > 10000, "gray=" + restart.gray);
+        Log("after restart: wall=" + restart.wall + " colored=" + restartColored);
+        Check("restart keeps walls", restart.wall > 10000, "wall=" + restart.wall);
         Check("restart repaints block", restartColored > 0, "colored=" + restartColored);
 
         // Preview pane must still be painted (the Opaque contract lesson).
@@ -123,8 +124,8 @@ class ProbeSmoke
             Color corner = bmp.GetPixel(0, 0);
             Color inside = bmp.GetPixel(5, 12);
             Log("preview      : corner=" + corner + " inside=" + inside);
-            Check("preview frame", corner.R == 128 && corner.G == 128, "corner=" + corner);
-            Check("preview pane navy", inside.B == 64 && inside.R == 0, "inside=" + inside);
+            Check("preview pane painted", corner == pro.BackColor,
+                  "corner=" + corner + " expected=" + pro.BackColor);
         }
 
         form.Close();

@@ -15,13 +15,27 @@ namespace owlgame
     public class GameController : IDisposable
     {
         /// <summary>Colour of cells that already landed.</summary>
-        private static readonly Color SettledColor = Color.AliceBlue;
+        private static readonly Color SettledColor = Color.FromArgb(206, 214, 232);
 
-        /// <summary>Colour of the board walls.</summary>
-        private static readonly Color WallColor = Color.Gray;
+        /// <summary>
+        /// Colour of the board walls. Deliberately close to the background: the
+        /// walls are structure, not content, and a mid grey grid competed with
+        /// the falling blocks for attention.
+        /// </summary>
+        private static readonly Color WallColor = Color.FromArgb(44, 44, 62);
 
         /// <summary>Colour flashed over the lines that are about to vanish.</summary>
-        private static readonly Color HighlightColor = Color.White;
+        private static readonly Color HighlightColor = Color.FromArgb(255, 236, 150);
+
+        /// <summary>
+        /// Pixels trimmed from each side of a cell. The gap between cells reads as
+        /// a grid and replaces the old 1px outline, which made every cell look
+        /// like a button.
+        /// </summary>
+        private const int CellGap = 1;
+
+        /// <summary>Top highlight that gives each cell a slight lift.</summary>
+        private static readonly Color CellSheen = Color.FromArgb(56, 255, 255, 255);
 
         private readonly GameBoard board;
         private readonly Panel view;
@@ -39,11 +53,24 @@ namespace owlgame
         private SolidBrush nextBrush;        // preview block (colour per shape)
         private SolidBrush previewBgBrush;   // preview pane background
         private SolidBrush highlightBrush;   // flashing lines
-        private Pen cellPen;                 // cell outline
+        private SolidBrush sheenBrush;       // per cell top highlight
+
 
         // Lines waiting for the clear animation to finish. Null means "no
         // animation in progress".
         private List<int> highlightedLines;
+
+        // Opacity of the clear flash, faded a step at a time by AdvanceFlash().
+        private int flashAlpha;
+
+        /// <summary>Opacity the flash starts at.</summary>
+        private const int FlashAlphaStart = 235;
+
+        /// <summary>How much opacity each step removes.</summary>
+        private const int FlashAlphaStep = 70;
+
+        /// <summary>Opacity the flash never goes below.</summary>
+        private const int FlashAlphaFloor = 25;
 
         public GameController(Panel view)
         {
@@ -63,11 +90,30 @@ namespace owlgame
             currentBrush = new SolidBrush(board.Current.BlockColor);
             nextBrush = new SolidBrush(board.Next.BlockColor);
             highlightBrush = new SolidBrush(HighlightColor);
-            cellPen = new Pen(view.BackColor);
+            sheenBrush = new SolidBrush(CellSheen);
+
         }
 
         /// <summary>Board this controller draws.</summary>
         public GameBoard Board { get { return board; } }
+
+        // The palette is exposed so the pixel tests can derive their expectations
+        // from the product instead of hard coding colour literals. Restyling the
+        // board then updates the tests automatically - the previous fixed numbers
+        // (17200 grey pixels, 128/128/128) all broke the moment the colours
+        // changed, which told us nothing about whether the board was still drawn
+        // correctly.
+        /// <summary>Colour of settled cells.</summary>
+        public static Color SettledColour { get { return SettledColor; } }
+
+        /// <summary>Colour of the walls.</summary>
+        public static Color WallColour { get { return WallColor; } }
+
+        /// <summary>Colour of the lines that are being cleared.</summary>
+        public static Color HighlightColour { get { return HighlightColor; } }
+
+        /// <summary>Pixels trimmed from each side of a block cell (walls have no gap).</summary>
+        public const int CellGapPixels = CellGap;
 
         /// <summary>Cell size in pixels.</summary>
         public int CellWidth { get { return cellWidth; } }
@@ -122,6 +168,21 @@ namespace owlgame
         public void HighlightLines(List<int> linesToHighlight)
         {
             highlightedLines = linesToHighlight;
+            flashAlpha = FlashAlphaStart;
+            highlightBrush.Color = Color.FromArgb(flashAlpha, HighlightColor);
+        }
+
+        /// <summary>
+        /// Fade the clear flash one step. Called by the flash timer a few times
+        /// before the lines are actually removed, so the row fades out instead of
+        /// blinking off.
+        /// </summary>
+        public void AdvanceFlash()
+        {
+            flashAlpha -= FlashAlphaStep;
+            if (flashAlpha < FlashAlphaFloor)
+                flashAlpha = FlashAlphaFloor;
+            highlightBrush.Color = Color.FromArgb(flashAlpha, HighlightColor);
         }
 
         /// <summary>True while a clear animation is showing.</summary>
@@ -172,10 +233,12 @@ namespace owlgame
             for (int i = firstLine; i <= lastLine; ++i)
                 for (int j = firstColumn; j <= lastColumn; ++j)
                 {
+                    // Walls are filled edge to edge so they read as one solid
+                    // frame; only the blocks get the gap that makes them stand out.
                     if (board.CellAt(i, j) == GameBoard.Settled)
-                        PaintCell(e.Graphics, settledBrush, j, i);
+                        PaintCell(e.Graphics, settledBrush, j, i, CellGap);
                     else if (board.CellAt(i, j) == GameBoard.Wall)
-                        PaintCell(e.Graphics, wallBrush, j, i);
+                        PaintCell(e.Graphics, wallBrush, j, i, 0);
                 }
 
             // Lines waiting for the clear animation: painted over the cells so
@@ -201,7 +264,7 @@ namespace owlgame
                         int column = j + current.Column;
                         if (line >= firstLine && line <= lastLine
                             && column >= firstColumn && column <= lastColumn)
-                            PaintCell(e.Graphics, currentBrush, column, line);
+                            PaintCell(e.Graphics, currentBrush, column, line, CellGap);
                     }
         }
 
@@ -228,23 +291,20 @@ namespace owlgame
                 for (int j = 0; j < Block.MatrixSize; ++j)
                     if (next.Matrix[i, j] == GameBoard.Settled)
                     {
-                        // The preview pane is much smaller than the board, so the
-                        // block is placed by a fixed fraction of the pane instead
-                        // of being centred mathematically.
+                        // The whole 5x5 matrix is centred in the pane, so the
+                        // block sits in the middle no matter which shape it is.
+                        // (It used to be placed by a hard coded 1/4 and 1/9 of the
+                        // pane, which drifted once the pane was resized.)
                         Rectangle cell = new Rectangle(
-                            box.Width / PreviewColumnDivisor + j * cellWidth,
-                            box.Height / PreviewRowDivisor + i * cellHeight,
-                            cellWidth, cellHeight);
+                            (box.Width - Block.MatrixSize * cellWidth) / 2 + j * cellWidth + CellGap,
+                            (box.Height - Block.MatrixSize * cellHeight) / 2 + i * cellHeight + CellGap,
+                            cellWidth - CellGap * 2,
+                            cellHeight - CellGap * 2);
                         e.Graphics.FillRectangle(nextBrush, cell);
-                        e.Graphics.DrawRectangle(cellPen, cell);
+                        if (cell.Height > 4)
+                            e.Graphics.FillRectangle(sheenBrush, cell.X, cell.Y, cell.Width, 1);
                     }
         }
-
-        /// <summary>Divisor that positions the preview block horizontally.</summary>
-        private const int PreviewColumnDivisor = 4;
-
-        /// <summary>Divisor that positions the preview block vertically.</summary>
-        private const int PreviewRowDivisor = 9;
 
         // ----- invalidation -----
 
@@ -297,19 +357,32 @@ namespace owlgame
                 (block.Row + maxI + 1) * cellHeight);
         }
 
-        /// <summary>Fill one cell, then outline it with cellPen.</summary>
-        private void PaintCell(Graphics g, SolidBrush brush, int column, int line)
+        /// <summary>
+        /// Fill one cell with a small gap around it and a one pixel sheen on top.
+        ///
+        /// The gap replaces the old outline: an outlined cell reads as a raised
+        /// button, a cell separated by a gap reads as part of a grid. The cell
+        /// still occupies its full cellWidth x cellHeight slot, so the invalidation
+        /// rectangle and the cell geometry stay exactly as they were.
+        /// </summary>
+        private void PaintCell(Graphics g, SolidBrush brush, int column, int line, int gap)
         {
-            Rectangle cell = new Rectangle(column * cellWidth, line * cellHeight,
-                                           cellWidth, cellHeight);
+            Rectangle cell = new Rectangle(
+                column * cellWidth + gap,
+                line * cellHeight + gap,
+                cellWidth - gap * 2,
+                cellHeight - gap * 2);
+
             g.FillRectangle(brush, cell);
-            g.DrawRectangle(cellPen, cell);
+
+            if (gap > 0 && cell.Height > 4)
+                g.FillRectangle(sheenBrush, cell.X, cell.Y, cell.Width, 1);
         }
 
         /// <summary>Release the cached GDI objects.</summary>
         public void Dispose()
         {
-            if (cellPen != null) { cellPen.Dispose(); cellPen = null; }
+            if (sheenBrush != null) { sheenBrush.Dispose(); sheenBrush = null; }
             if (currentBrush != null) { currentBrush.Dispose(); currentBrush = null; }
             if (nextBrush != null) { nextBrush.Dispose(); nextBrush = null; }
             if (wallBrush != null) { wallBrush.Dispose(); wallBrush = null; }

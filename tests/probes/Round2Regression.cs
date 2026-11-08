@@ -78,14 +78,18 @@ class ProbeRound2
         return bmp;
     }
 
-    static int CountGray(Bitmap bmp)
+    // Counts pixels painted with the product's wall colour. Walls are the only
+    // large static area of solid colour, so this doubles as a cheap
+    // "is the board still being drawn" probe.
+    static int CountWallPixels(Bitmap bmp)
     {
+        Color wall = owlgame.GameController.WallColour;
         int n = 0;
         for (int y = 0; y < bmp.Height; y++)
             for (int x = 0; x < bmp.Width; x++)
             {
                 Color c = bmp.GetPixel(x, y);
-                if (c.R == 128 && c.G == 128 && c.B == 128) n++;
+                if (c.R == wall.R && c.G == wall.G && c.B == wall.B) n++;
             }
         return n;
     }
@@ -256,9 +260,9 @@ class ProbeRound2
 
         using (Bitmap reference = FullPaint())
         {
-            int gray = CountGray(reference);
-            Log("walls replayed: gray=" + gray + " size=" + w + "x" + h);
-            Check("walls painted", gray > 10000, "gray=" + gray);
+            int wallPixels = CountWallPixels(reference);
+            Log("walls replayed: wallPixels=" + wallPixels + " size=" + w + "x" + h);
+            Check("walls painted", wallPixels > 10000, "wallPixels=" + wallPixels);
         }
         canvas.Dispose();
 

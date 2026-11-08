@@ -64,13 +64,15 @@ Results: 56 passed, 1 failed, 0 skipped, 57 total (1889 ms)
 `PixelSmoke`（220×388 棋盘，`cellWidth=11` / `cellHeight=11`，**35 行**）：
 
 ```
-after start  : gray(walls)=17200  colored(block)=400  navy=67760
-120 key ops  : gray min=17200 max=17200   colored min=400 max=400
-after restart: gray=17200 colored=400 navy=67760
-preview      : corner=(128,128,128)  inside=(0,0,64)
+after start  : wall=20812 colored=64548
+120 key ops  : wall min=20812 max=20812   colored min=64548 max=64548
+after restart: wall=20812 colored=64548
+preview      : corner=<pane background>
 ```
 
-**`gray` 一旦下降就代表擦除-重绘间隙出现，即闪烁回来了**。
+**`wall` 一旦下降就代表擦除-重绘间隙出现，即闪烁回来了**。
+
+> `wall = 20812` 是 172 个墙格 × 121 像素（墙无缝填充，11×11 满格）。这个数字本身不写死在测试里 —— 期望值由 `GameController.WallColour`、`CellWidth`、`CellHeight` 与棋盘上的墙格数推导出来，换配色时测试自动跟上。
 
 `Round2Regression`：
 
@@ -108,4 +110,5 @@ CI 只跑逻辑用例 —— runner 是 session 0，没有交互式桌面，`For
 - 只用 **C# 5** 语法：不能本地函数、`?.`、`$"..."`；
 - 断言文案写清楚「期望什么、为什么」，失败时不用回头读代码；
 - 逻辑用例优先直接 `new GameBoard(35)`，不要反射掏 `GameController` 的私有字段 —— 那是 UI 层的事；
-- **测边界时不要猜行号/列号**：方块矩阵的填充行列不从 0 开始，先用 `MinFilledColumn` / `MaxFilledColumn` / `MinFilledRow` / `MaxFilledRow` 算出真实范围，再构造「刚好顶到墙」与「刚好贴着最后一个可玩格」两个位置各断言一次。只测 `column = -1` 那种越界情况，证明不了「合法列号上的贴墙」也被拒绝。
+- **测边界时不要猜行号/列号**：方块矩阵的填充行列不从 0 开始，先用 `MinFilledColumn` / `MaxFilledColumn` / `MinFilledRow` / `MaxFilledRow` 算出真实范围，再构造「刚好顶到墙」与「刚好贴着最后一个可玩格」两个位置各断言一次。只测 `column = -1` 那种越界情况，证明不了「合法列号上的贴墙」也被拒绝；
+- **像素断言要能从产品推导**：别写 `if (p.R == 128 && p.G == 128 && p.B == 128)` 然后硬编码 `17200`。配色一改，测试报的是「颜色变了」而不是「棋盘没画」，等于失去了检测能力。用 `GameController.WallColour` + 墙格数 × 格面积来推导。

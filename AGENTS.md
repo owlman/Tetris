@@ -12,7 +12,8 @@
 
 - 玩法：方向键 ↑ 旋转、← → 移动、↓ 加速下落；「开始」启动、「重玩」重置、「说明」看帮助。
 - 计分：1/2/3/4 行分别 100/300/500/800 分 × 当前等级；每 10 行升一级，下落间隔 1000 ms 起、每级 -90 ms、下限 120 ms。
-- 消行有一小段高亮动画（`flashTimer`，130 ms），动画期间 `gametimer` 暂停。
+- 消行有一段**淡出动画**（`flashTimer`，45 ms × 3 帧，alpha 235→165→95→25），动画期间 `gametimer` 暂停。
+- 界面为现代浅色卡片风格（2026-11 第 8 轮）：微软雅黑、扁平按钮、三张白色卡片（预览 / 控制 / 读数）；棋盘为深色无缝墙 + 带间隙方块。
 - 棋盘 20 列 × **35 行**，7 种方块，每种形状固定一种颜色。
   - 行数 = `rowNo * v.Height / v.Width` = `20 * 388 / 220` = **35**（整数除法）。旧文档写的 38 是错的。
   - 格子 11×11 像素（`bw = 220/20`，`bh = 388/35`）。
@@ -220,7 +221,10 @@ Block (数据 + 形状表)
 - `gamewiew` 是 `Panel`，**默认不开双缓冲**；`proimg` 是 `PictureBox`，**默认开双缓冲**。这是实测结论。
 - 类名已统一为 PascalCase（`MainForm` / `GameController` / `GameBoard` / `Block`），**控件名仍是设计器给出的小写**（`gamewiew` / `proimg` / `gaizi` / `gametimer`）—— 控件名改了要同步 `*.Designer.cs`，不要顺手改。
 - **两个定时器的分工**：`gametimer` 负责下落（间隔随等级变化），`flashTimer` 是消行动画的一次性定时器。消行流程是 `gametimer_Tick` 发现满行 → 关掉 `gametimer`、`HighlightLines()` + 启动 `flashTimer` → `flashTimer_Tick` 里真正 `ClearLines()` 并调 `EndTurn()`。**不要跳过 flash 直接 `ClearLines()`**，否则动画失效；也不要在动画期间让 `gametimer` 继续跑，新方块会盖在动画上。
-- `infoLabel` 显示分数 / 等级 / 消行，字符串里的 `\n` 是 C# 转义；`UpdateStatus()` 是唯一刷新它的地方，改计分逻辑后记得同步。
+- 读数由三个独立 Label 承担：`scoreValue` / `levelValue` / `linesValue`（另有 `scoreCaption` 等三个灰色小标题）。`UpdateStatus()` 是唯一刷新它们的地方，改计分逻辑后记得同步。
+- **配色一律定义在 `GameController` 且对外暴露**（`WallColour` / `SettledColour` / `HighlightColour` / `CellGapPixels`）。像素测试从这些常量推导期望值 —— 换配色只改这里，不要去改测试里的数字。
+- **`gamewiew` 固定 220×388 不要动**：`lineCount = 20 × H / W = 35`、格子 `11×11`，这两个数被脏区计算与像素基线同时依赖。现代化改外围，不改棋盘几何。
+- 进程已声明 DPI 感知（`Program.Main` 里 `SetProcessDPIAware()`），`AutoScaleMode = Dpi`。
 - `gaizi` 是覆盖在 `gamewiew` 上的 `Dock=Fill` Panel，开局时 `Hide()`、结束时 `Show()` 显示"欢迎尝试游戏"/"游戏失败啦"。
 - `gamewiew.AutoSize` 已从 `true` 改为 `false`（原本与内部 `Dock=Fill` 子控件形成递归布局约束）。
 

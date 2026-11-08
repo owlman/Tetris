@@ -13,6 +13,11 @@ namespace owlgame
     {
         private GameController controller;
 
+        /// <summary>How many fade steps the clear animation runs for.</summary>
+        private const int FlashSteps = 3;
+
+        private int flashStep;
+
         // Diagnostic channel. Reflection based styling and link handling are
         // best effort, but a silent failure would hide the flicker quietly
         // coming back. Trace.WriteLine alone is not enough: it carries
@@ -220,6 +225,7 @@ namespace owlgame
                 controller.HighlightLines(full);
                 gamewiew.Invalidate();
                 flashTimer.Tag = full;
+                flashStep = 0;
                 flashTimer.Enabled = true;
                 return;
             }
@@ -259,6 +265,15 @@ namespace owlgame
 
         private void flashTimer_Tick(object sender, EventArgs e)
         {
+            // Fade the highlighted lines for a few steps, then remove them.
+            flashStep++;
+            if (flashStep < FlashSteps)
+            {
+                controller.AdvanceFlash();
+                gamewiew.Invalidate();
+                return;
+            }
+
             flashTimer.Enabled = false;
             System.Collections.Generic.List<int> full =
                 flashTimer.Tag as System.Collections.Generic.List<int>;
@@ -287,14 +302,16 @@ namespace owlgame
         {
             if (controller == null)
             {
-                infoLabel.Text = "分数\n0\n\n等级\n1\n\n消行\n0";
+                scoreValue.Text = "0";
+                levelValue.Text = "1";
+                linesValue.Text = "0";
                 return;
             }
 
             GameBoard board = controller.Board;
-            infoLabel.Text = "分数\n" + board.Score
-                + "\n\n等级\n" + board.Level
-                + "\n\n消行\n" + board.Lines;
+            scoreValue.Text = board.Score.ToString();
+            levelValue.Text = board.Level.ToString();
+            linesValue.Text = board.Lines.ToString();
         }
 
         private void buttonback_Click(object sender, EventArgs e)
@@ -341,11 +358,8 @@ namespace owlgame
                 e.Graphics.FillRectangle(bgBrush, proimg.ClientRectangle);
             if (controller != null)
                 controller.DrawPreview(proimg, e);
-            // Draw the frame of the pane on top of the preview so the box
-            // is visible as a cell, exactly like the cells on the board.
-            using (Pen framePen = new Pen(Color.Gray))
-                e.Graphics.DrawRectangle(framePen,
-                    0, 0, proimg.ClientRectangle.Width - 1, proimg.ClientRectangle.Height - 1);
+            // No outline any more: the preview sits inside a white card, and a
+            // second grey frame around it just added noise.
         }
 
         private void buttonset_Click(object sender, EventArgs e)
