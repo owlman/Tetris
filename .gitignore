@@ -3,24 +3,34 @@
 *.user
 *.suo
 
-# 中间构建产物（obj/ 下部分历史文件已被版本跟踪，故只忽略新增的缓存类文件）
-obj/Debug/*.cache
-obj/Debug/*.AssemblyAttributes.cs
-obj/Debug/*.FileListAbsolute.txt
-obj/*.FileListAbsolute.txt
-owlgame/obj/Debug/*.cache
-owlgame/obj/Debug/*.AssemblyAttributes.cs
-owlgame/obj/Debug/*.FileListAbsolute.txt
-owlgame/obj/*.FileListAbsolute.txt
+# 构建中间产物（仓库里不再跟踪任何 obj 文件）
+obj/
+*.GenerateResource.Cache
+*.FileListAbsolute.txt
+*.FileList.txt
+*.AssemblyAttributes.cs
+*.resources
+
+# Visual Studio 调试宿主（vshost 由调试器生成，不是分发产物）
+*.vshost.exe
+*.vshost.exe.manifest
+
+# 归档 / 压缩包不属于源码
+*.rar
+*.zip
 
 # 手工快照目录（修复过程中的临时副本，不属于项目组成部分）
 Backup/
 Backup1/
 
 # VS 升级迁移报告等噪声文件
-UpgradeLog.htm
-UpgradeLog2.htm
+UpgradeLog*.htm
 
 # 临时目录（探针脚本、构建暂存等）
 temp/
 temp_build/
+
+# --- 有意保留跟踪的例外 ---
+# owlgame/bin/Debug/owlgame.exe 与 owlgame.pdb 是刻意入库的：老项目惯例，
+# clone 下来双击即可运行。因此这里不写 `bin/`；上面的规则只针对具体的
+# 产物文件名（*.vshost.exe / *.rar 等），不会波及这两个文件。
