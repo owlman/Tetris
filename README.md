@@ -1,4 +1,4 @@
-# 俄罗斯方块（Tetris）
+# 俄罗斯方块（C# 实现）
 
 > 作者：owlnan（浙江大学，2006 年）　技术栈：C# + Windows Forms（纯 GDI 运行时绘制，不使用位图资源）
 
@@ -26,7 +26,7 @@
 
 仓库中已跟踪编译好的可执行文件：
 
-```
+```Bash
 owlgame/bin/Debug/owlgame.exe
 ```
 
@@ -38,7 +38,7 @@ owlgame/bin/Debug/owlgame.exe
 
 本机**没有安装 .NET Framework SDK**，用 `MSBuild.exe` 构建会报：
 
-```
+```Bash
 error MSB3091: resgen.exe 未能找到 ... 未安装 .NET Framework SDK
 ```
 
@@ -55,7 +55,7 @@ cp "<项目路径>/owlgame/Properties/Resources.resx" Properties/
 # 2) 编译（注意 /main、三个 /resource、图标）
 MSYS_NO_PATHCONV=1 /c/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe \
   /nologo /target:winexe /main:owlgame.Program \
-  /out:owlgame.exe /debug \
+  /out:owlgame.exe /debug /define:TRACE,DEBUG \
   /win32icon:"Core IP theme Icon 01.ico" \
   /resource:mainForm.resx,owlgame.mainForm.resources \
   /resource:gamehelp.resx,owlgame.gamehelp.resources \
@@ -78,7 +78,7 @@ cp owlgame.pdb "<项目路径>/owlgame/bin/Debug/owlgame.pdb"
 
 ## 目录结构
 
-```
+```Bash
 Tetris/
 ├── owlgame/                    # 唯一的项目目录（项目名 MuscoviteBlock，程序集名 owlgame）
 │   ├── MuscoviteBlock.csproj   # VS2005 时代的老式 csproj（Format 12.00，非 SDK-style）
@@ -101,7 +101,7 @@ Tetris/
 
 三个类，一条数据流：
 
-```
+```bash
 mainForm (UI + 事件)
    │  持 controller 引用；controller == null 表示「未开局」
    ├─ gamewiew_Paint(e)   ──► controller.draw(e)           画主棋盘（Panel 自绘）
@@ -134,7 +134,7 @@ block (数据)
 | `block.size = 5` 但只有 7 种形状 | 5×5 矩阵里实际只占 2×4 / 3×2 等一小块，其余是 0 |
 | 预览框位置看起来没居中 | `drawwait` 用 `box.Width/4 + j*bw` 定位，是硬编码的近似居中 |
 | 没有分数、没有等级、没有消行动画 | 原作者未实现 |
-| 游戏结束后「开始」按钮变灰 | 失败分支里 `buttonstart.Enabled = false`，此时只能用「重玩」 |
+| ~~游戏结束后「开始」按钮变灰~~ | **已修复**：失败后按钮恢复可用且文案复位，一次点击即可开新局 |
 | `gamecontroller.cs` 里有 `using System.Windows.Forms` | 为了用 `Panel` / `PictureBox` / `PaintEventArgs` |
 
 ---
@@ -144,11 +144,3 @@ block (数据)
 - **实验笔记**：[《WinForms 自绘控件闪烁问题的定位与修复》](../../02.实验笔记/WinForms%20自绘控件闪烁问题的定位与修复.md) —— 闪烁问题的完整定位过程与像素级验证方法
 - **姊妹实现**：[`../python/tetris.py`](../python/tetris.py) —— Python + pygame 版，与 C# 版互不引用
 - **Agent 工作指引**：[`AGENTS.md`](AGENTS.md) —— 构建流程、编码规范、验证方法、踩坑清单
-
----
-
-## 原始 README（2006 年作者原文）
-
-> 这是一个用 c# 实现的俄罗斯方块小游戏。由于实现中没有采用位图缓存，而是运行时旋转生成，画面有些闪……
-
-*（原文写于 2006 年，作者未写完。）*

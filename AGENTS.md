@@ -106,7 +106,7 @@ cp "/d/Working/writing/0_LabNotes/游戏开发/01.实验项目/C#/Tetris/owlgame
 # 2) 编译（注意 /main、三个 /resource、图标）
 MSYS_NO_PATHCONV=1 /c/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe \
   /nologo /target:winexe /main:owlgame.Program \
-  /out:owlgame.exe /debug \
+  /out:owlgame.exe /debug /define:TRACE,DEBUG \
   /win32icon:"Core IP theme Icon 01.ico" \
   /resource:mainForm.resx,owlgame.mainForm.resources \
   /resource:gamehelp.resx,owlgame.gamehelp.resources \
@@ -125,6 +125,7 @@ cp owlgame.pdb "$P/owlgame/bin/Debug/owlgame.pdb"
 - `/main:owlgame.Program` 必须给：目录里若残留测试用的 `harness*.cs` / `check*.cs`（各自带 `Main`），不指定会报 `CS0017: 程序集有多个入口点`。**编译前删掉测试脚本**。
 - 三个 `.resx` 必须以程序集限定名嵌入，否则运行时报 `MissingManifestResourceException`。
 - 图标是 `Core IP theme Icon 01.ico`（161 KB，VS 升级产物），用 `/win32icon:` 才能带上，否则 exe 图标丢失。
+- `/define:TRACE,DEBUG` 不能省：`System.Diagnostics.Trace.WriteLine` 带 `[Conditional("TRACE")]`，**不定义常量时整个调用会被编译器移除**，诊断输出等于空操作。
 
 ---
 
@@ -213,6 +214,9 @@ block (数据)
 ---
 
 ## 验证方法（本项目没有单元测试，靠探针）
+
+> 📁 **回归探针已固化**：`tests/Round1Regression.cs`（逻辑）与 `tests/PixelSmoke.cs`（像素），
+> 用法与基线见 `tests/README.md`。探针各自带 `Main`，**不要**与 `owlgame/*.cs` 一起通配编译。
 
 不能靠肉眼看、也不能靠抓帧（闪烁是瞬态的，`DoEvents()` 之后画面已稳定，抓帧必然抓到正常帧）。可用的两条路：
 
