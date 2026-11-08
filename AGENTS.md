@@ -64,8 +64,8 @@ Tetris/
 │   ├── gamehelp.cs(+Designer) # 「说明」帮助窗体
 │   ├── MainForm.resx / gamehelp.resx
 │   ├── Properties/          # AssemblyInfo / Resources / Settings
-│   ├── bin/Debug/           # **已被 git 跟踪**，含 owlgame.exe / .pdb / .vshost.exe
-│   └── obj/                 # **部分被 git 跟踪**（旧 csproj 的产物）
+│   ├── bin/Debug/           # 仅 owlgame.exe / owlgame.pdb 被跟踪（clone 即可运行）；vshost 已移出
+│   └── obj/                 # 构建中间产物，**已全部移出版本控制**并由 .gitignore 忽略
 ├── Backup/                  # 未跟踪：修复前的原始代码快照
 ├── Backup1/                 # 未跟踪：闪烁修复后的中间快照
 ├── temp/                    # 未跟踪：临时产物（backup_bin/ 存原版 exe）
@@ -349,3 +349,4 @@ after restart: gray=17200 colored=400 navy=67760
 | `mainForm` 里 `welcomelabel` 覆盖整个棋盘 | `gaizi` 覆盖层在开局/结束时 `Show()` |
 | `README` 只有一句话且以"、"结尾 | 原文如此，写于 2006 年，作者未写完 |
 | `Backup/` 与 `Backup1/` 存在 | 修复过程中的手工快照，非项目组成部分 |
+| `owlgame/bin/Debug/` 仍跟踪 exe 与 pdb | 老项目惯例，clone 下来双击即可运行；`obj/` 与 `vshost` 已移出（第 4 轮） |
