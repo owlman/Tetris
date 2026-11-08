@@ -1,35 +1,38 @@
 # 回归探针
 
-本项目没有单元测试框架，验证靠两个独立的探针程序（各自带 `Main`，因此**不能**和 `owlgame/*.cs` 一起通配编译）。
+本项目没有单元测试框架，验证靠探针程序（各自带 `Main`，因此**不能**和 `owlgame/*.cs` 一起通配编译）。
 
 | 文件 | 作用 |
 | --- | --- |
 | `Round1Regression.cs` | 逻辑回归：形状随机性、形状↔颜色映射、外链 scheme 校验、Game Over 后按钮状态 |
+| `Round2Regression.cs` | 绘制回归：GDI 句柄稳定性、局部重绘是否真的局部、脏区是否覆盖旧+新位置、增量重绘与全绘的逐像素一致性 |
 | `PixelSmoke.cs` | 像素冒烟：墙体像素守恒（闪烁检测）、当前块/预览框绘制、重玩路径 |
 
-## 用法
+## 一键运行
 
 ```bash
-# 1) 先把 owlgame 编译到纯 ASCII 路径（见 AGENTS.md「构建」一节）
-cd /c/t_build
-
-# 2) 编译探针（探针文件必须带 UTF-8 BOM，否则 csc 按 ANSI 读到一堆假语法错误）
-MSYS_NO_PATHCONV=1 /c/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe \
-  /nologo /target:exe /out:probe_r1.exe /reference:owlgame.exe \
-  "<项目路径>/tests/Round1Regression.cs"
-
-MSYS_NO_PATHCONV=1 /c/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe \
-  /nologo /target:exe /out:probe_smoke.exe /reference:owlgame.exe \
-  "<项目路径>/tests/PixelSmoke.cs"
-
-# 3) 运行；结果同时写入 out_*.txt（UTF-8），退出码为失败断言数
-./probe_r1.exe
-./probe_smoke.exe
+bash tests/run.sh                  # 默认构建目录 C:\t_build
+BUILD_DIR=/c/t2 bash tests/run.sh  # 自定义构建目录
 ```
+
+脚本会：清空构建目录 → 拷源码（csc 不支持中文路径）→ 编译 owlgame.exe → 编译全部探针 → 逐个运行 → 汇总。任一步失败即返回非零。
+
+## 手工运行
+
+```bash
+cd /c/t_build
+MSYS_NO_PATHCONV=1 /c/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe \
+  /nologo /target:exe /out:probe_r2.exe /reference:owlgame.exe \
+  "<项目路径>/tests/Round2Regression.cs"
+./probe_r2.exe        # 结果同时写入 out_round2.txt（UTF-8），退出码 = 失败断言数
+```
+
+> 探针源码必须带 **UTF-8 BOM**，否则 `csc` 按 ANSI(936) 读会报一堆 `CS1513 / CS1519` 假语法错误。
+> `csc` v4.0.30319 是 **C# 5** 编译器：本地函数、`?.`、`$"..."` 都不支持。探针曾因为写了本地函数 `Bitmap FullPaint()` 而编译失败。
 
 ## 基线
 
-`PixelSmoke` 的实测基线（220×388 棋盘，`bw=11` / `bh=10`，38 行）：
+`PixelSmoke`（220×388 棋盘，`bw=11` / `bh=11`，**35 行**）：
 
 ```
 after start  : gray(walls)=17200  colored(block)=400  navy=67760
@@ -39,5 +42,19 @@ preview      : corner=(128,128,128)  inside=(0,0,64)
 ```
 
 **`gray` 一旦下降就代表擦除-重绘间隙出现，即闪烁回来了**；`colored` 下降代表方块没画出来。
+
+`Round2Regression`：
+
+```
+GDI objects: before=22 after 20 restarts=22           ← 重开 20 次句柄数不增长
+repaint rects: partial=79 full=0 (over 80 operations) ← 局部重绘生效，没有退化成全屏
+dirty rect covers old+new block: 0 / 80 uncovered     ← 脏区包含旧位置 ∪ 新位置
+ghost check: steps=80 stepsWithGhost=0 worstDiffPixels=0
+```
+
+`ghost check` 是残影的决定性判据：它把真实 Paint 事件给出的脏区矩形重放到一张**内存画布**（等价于双缓冲的后台缓冲），再与同状态的全量重绘逐像素比较。脏区若算少了，画布上会留下旧像素，差异数立刻不为 0。
+
+> 为什么不抓屏幕：`CopyFromScreen` 依赖窗口焦点、DWM 合成时机与是否被遮挡，实测会因半合成帧（灰墙与背景按 24% 混合）和 ±1 色阶抖动产生大量假差异。内存画布方案完全确定性，可在无人值守环境下运行。
+> 也不要拿 `DrawToBitmap` 当基准：它走 `WM_PRINT` 渲染路径，笔对齐与屏幕路径差 1 像素，会产生约 15000 个假差异。
 
 `Round1Regression` 中的形状随机性断言允许少量碰撞（20 次抽样里约 2~3 对相同属正常随机），但修复前是 **20/20 全同**。

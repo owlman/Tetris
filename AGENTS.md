@@ -11,7 +11,9 @@
 一个 2006 年浙大（zju）作者用 C# + WinForms 写的俄罗斯方块小游戏，**画面全部由 GDI 手工绘制**，而不是用控件摆放方块。原始版本存在"按键操作时画面闪烁"的缺陷，2026-11 已定位并修复（详见"闪烁修复"一节与配套实验笔记）。
 
 - 玩法：方向键 ↑ 旋转、← → 移动、↓ 加速下落；「开始」启动、「重玩」重置、「说明」看帮助。
-- 棋盘 20 列 × 约 38 行（行数由控件宽高比算出），7 种方块、3 种颜色。
+- 棋盘 20 列 × **35 行**，7 种方块，每种形状固定一种颜色。
+  - 行数 = `rowNo * v.Height / v.Width` = `20 * 388 / 220` = **35**（整数除法）。旧文档写的 38 是错的。
+  - 格子 11×11 像素（`bw = 220/20`，`bh = 388/35`）。
 - 同一 `游戏开发` 目录下还有一个姊妹实现：`../python/tetris.py`（Python + pygame 版），两者互不引用。
 
 配套实验笔记（**改动本项目时应同步考虑是否需要更新**）：
@@ -207,8 +209,15 @@ block (数据)
 1. `EnableDoubleBuffer()` —— 反射设置 `Control.DoubleBuffered`，**递归到所有子控件**。
 2. `ApplyFlickerFix()` —— 反射 `SetStyle` 追加 `OptimizedDoubleBuffer | AllPaintingInWmPaint | Opaque`，断掉 `WM_ERASEBKGND`。
 3. **`Opaque` 是一个契约**：声明"我覆盖每一个像素"，因此**自绘函数必须自己铺满整个背景**。`draw()` / `drawwait()` 开头都加了 `FillRectangle(bgBrush, ClientRectangle)`。
-4. `Invalidateblock()` 改为整块 `view.Invalidate()`（绕开脏矩形偏移 bug）。
+4. ~~`Invalidateblock()` 改为整块 `view.Invalidate()`~~ —— **第 2 轮已改回脏矩形局部重绘**（见下）。
 5. `gamewiew.AutoSize = false`。
+
+### 局部重绘与 GDI 缓存（第 2 轮，不要退回全屏重绘）
+
+- `InvalidateBlock(Rectangle before)`：调用方传入**移动前**块的外接框，方法内部与移动后的外接框取 `Rectangle.Union`，只失效并集区域。偏移公式必须是 `(j + now.curx) * bw` —— 历史 bug 写成 `(j + now.curx - 4) * bw`，多减了 4 整格。
+- `draw()` 只遍历与 `e.ClipRectangle` 相交的格子（由脏区反推 `i0..i1 / j0..j1`），但**背景填充仍必须覆盖整个脏区**（`Opaque` 契约）。
+- `Pen` / `SolidBrush` 提为字段，构造时创建、`Dispose()` 释放；`mainForm.ResetController()` 在开新局时释放旧的 controller，否则句柄会泄漏。
+- ⚠️ 改这里必须跑 `tests/Round2Regression.cs`：它把真实 Paint 事件的脏区重放到内存画布，再与全量重绘逐像素比对。**脏区算少 = 残影，比闪烁更难察觉。**
 
 > ⚠️ **改动自绘函数时必须记住 Opaque 契约**：任何一个 Paint 分支"什么都不画"，屏幕就会残留脏像素。
 > 实例：`proimg_Paint` 原本是 `if (controller != null) controller.drawwait(...)`，初始界面 `controller == null` → 一帧不画 → 因为 `proimg` 带 `Opaque` 标志、Windows 不再替它擦背景 → **「下一个」下面那块预览窗格整个消失**。修法是先无条件铺 `proimg.BackColor`，再画预览，最后补一圈灰色边框。改动此函数时务必覆盖"未开局"与"游戏中"两个状态。
@@ -217,8 +226,12 @@ block (数据)
 
 ## 验证方法（本项目没有单元测试，靠探针）
 
-> 📁 **回归探针已固化**：`tests/Round1Regression.cs`（逻辑）与 `tests/PixelSmoke.cs`（像素），
-> 用法与基线见 `tests/README.md`。探针各自带 `Main`，**不要**与 `owlgame/*.cs` 一起通配编译。
+> 📁 **回归探针已固化**，一键运行：`bash tests/run.sh`
+> - `tests/Round1Regression.cs` —— 逻辑（形状随机、配色、外链、Game Over）
+> - `tests/Round2Regression.cs` —— 绘制（GDI 句柄、局部重绘、脏区覆盖、**残影逐像素比对**）
+> - `tests/PixelSmoke.cs` —— 像素冒烟（墙体守恒、预览框、重玩）
+>
+> 探针各自带 `Main`，**不要**与 `owlgame/*.cs` 一起通配编译。用法与基线见 `tests/README.md`。
 
 不能靠肉眼看、也不能靠抓帧（闪烁是瞬态的，`DoEvents()` 之后画面已稳定，抓帧必然抓到正常帧）。可用的两条路：
 
@@ -309,7 +322,7 @@ after restart: gray=17200 colored=400 navy=67760
 
 | 现象 | 真相 |
 | --- | --- |
-| `gamecontroller` 里 `rowNo = 20` 但棋盘是 20×38 | 列数固定 20，**行数由 `v.Height / v.Width * rowNo` 算出**（220×388 的控件 → 38 行） |
+| `gamecontroller` 里 `rowNo = 20` 但棋盘是 20×35 | 列数固定 20，**行数由 `v.Height / v.Width * rowNo` 算出**（220×388 的控件 → `20*388/220` = 35 行） |
 | `drawwait` 里用 `box.Width/4 + j*bw` 定位预览 | 预览框比棋盘小得多，位置是硬编码的近似居中，不是数学居中 |
 | `block.size = 5` 但只有 7 种形状 | 5×5 矩阵里实际只占 2×4 / 3×2 等一小块，其余是 0 |
 | `gamecontroller.cs` 里有 `using System.Windows.Forms` | 为了用 `Panel` / `PictureBox` / `PaintEventArgs` |
