@@ -171,8 +171,10 @@ namespace owlgame
             {
                 gaizi.Hide();
                 ResetController();
-                buttonback.Enabled = true; 
+                buttonback.Enabled = true;
+                ApplyDropSpeed();
                 gametimer.Enabled = true;
+                UpdateStatus();
                 gamewiew.Invalidate();
                 proimg.Invalidate();
                 buttonstart.Text = "停止(&P)";
@@ -202,30 +204,97 @@ namespace owlgame
 
         private void gametimer_Tick(object sender, EventArgs e)
         {
-            if (controller.Down(1) == false)
+            // The block is still falling: nothing else to do this tick.
+            if (controller.Down(1))
+                return;
+
+            controller.Merge();
+
+            System.Collections.Generic.List<int> full = controller.FindFullLines();
+            if (full.Count > 0)
             {
-                controller.Merge();
-                controller.ClearLines();
-                controller.Advance();
-                if (controller.IsGameOver())
-                {
-                    gametimer.Enabled = false;
-                    gaizi.Show();
-                    welcomelabel.Text = "你失败了…";
-                    // Keep the start button usable and restore its caption so a
-                    // single click starts the next round; it used to be disabled,
-                    // leaving "重玩" as the only way out.
-                    buttonstart.Enabled = true;
-                    buttonstart.Text = "开始(&E)";
-                    gaizi.Focus();
-                }
-                else
-                {
-                    proimg.Invalidate();
-                    gamewiew.Invalidate();
-                }
-            }                    
-            
+                // Show the completed lines for a moment, then clear them in
+                // flashTimer_Tick. The clock is stopped meanwhile so the next
+                // block cannot start falling over the animation.
+                gametimer.Enabled = false;
+                controller.HighlightLines(full);
+                gamewiew.Invalidate();
+                flashTimer.Tag = full;
+                flashTimer.Enabled = true;
+                return;
+            }
+
+            EndTurn();
+        }
+
+        /// <summary>
+        /// Completes the turn once no line is waiting to be cleared: promote the
+        /// preview block, refresh the readout and look for the game over state.
+        /// </summary>
+        private void EndTurn()
+        {
+            controller.Advance();
+            UpdateStatus();
+
+            if (controller.IsGameOver())
+            {
+                gametimer.Enabled = false;
+                gaizi.Show();
+                welcomelabel.Text = "你失败了… 分数 " + controller.Board.Score;
+                // Keep the start button usable and restore its caption so a
+                // single click starts the next round; it used to be disabled,
+                // leaving "重玩" as the only way out.
+                buttonstart.Enabled = true;
+                buttonstart.Text = "开始(&E)";
+                gaizi.Focus();
+                gamewiew.Invalidate();
+                return;
+            }
+
+            ApplyDropSpeed();
+            gametimer.Enabled = true;
+            proimg.Invalidate();
+            gamewiew.Invalidate();
+        }
+
+        private void flashTimer_Tick(object sender, EventArgs e)
+        {
+            flashTimer.Enabled = false;
+            System.Collections.Generic.List<int> full =
+                flashTimer.Tag as System.Collections.Generic.List<int>;
+            flashTimer.Tag = null;
+
+            if (full != null)
+                controller.ClearLines(full);
+
+            gamewiew.Invalidate();
+            EndTurn();
+        }
+
+        /// <summary>
+        /// Keep the drop interval in step with the level: level 1 drops once a
+        /// second, every level is a little faster.
+        /// </summary>
+        private void ApplyDropSpeed()
+        {
+            int interval = controller.Board.DropInterval;
+            if (gametimer.Interval != interval)
+                gametimer.Interval = interval;
+        }
+
+        /// <summary>Refresh the score / level / lines readout.</summary>
+        private void UpdateStatus()
+        {
+            if (controller == null)
+            {
+                infoLabel.Text = "分数\n0\n\n等级\n1\n\n消行\n0";
+                return;
+            }
+
+            GameBoard board = controller.Board;
+            infoLabel.Text = "分数\n" + board.Score
+                + "\n\n等级\n" + board.Level
+                + "\n\n消行\n" + board.Lines;
         }
 
         private void buttonback_Click(object sender, EventArgs e)
@@ -233,7 +302,9 @@ namespace owlgame
             gaizi.Hide();
             ResetController();
             buttonstart.Enabled = true;
+            ApplyDropSpeed();
             gametimer.Enabled = true;
+            UpdateStatus();
             gamewiew.Invalidate();
             proimg.Invalidate();
             buttonstart.Text = "停止(&P)";

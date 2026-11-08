@@ -6,6 +6,7 @@
 | --- | --- |
 | `Round1Regression.cs` | 逻辑回归：形状随机性、形状↔颜色映射、消行、边界拒绝、外链 scheme 校验、Game Over 后按钮状态。**第 3 轮起大部分断言直接驱动 `GameBoard`，不再靠反射** |
 | `Round2Regression.cs` | 绘制回归：GDI 句柄稳定性、局部重绘是否真的局部、脏区是否覆盖旧+新位置、增量重绘与全绘的逐像素一致性 |
+| `Round5Regression.cs` | 玩法回归：计分表、等级推进与乘数、下落间隔与下限、消行高亮状态机、分数读数 |
 | `PixelSmoke.cs` | 像素冒烟：墙体像素守恒（闪烁检测）、当前块/预览框绘制、重玩路径 |
 
 ## 一键运行
@@ -58,3 +59,15 @@ ghost check: steps=80 stepsWithGhost=0 worstDiffPixels=0
 > 也不要拿 `DrawToBitmap` 当基准：它走 `WM_PRINT` 渲染路径，笔对齐与屏幕路径差 1 像素，会产生约 15000 个假差异。
 
 `Round1Regression` 中的形状随机性断言允许少量碰撞（20 次抽样里约 2~3 对相同属正常随机），但修复前是 **20/20 全同**。
+
+`Round5Regression` 的关键数值：
+
+```
+score for 1/2/3/4 line(s) = 100 / 300 / 500 / 800
+level: 9 lines -> 1, 10 lines -> 2, level 2 doubles the points (delta = 200)
+drop interval: level 1 = 1000 ms, level 2 = 910 ms, clamped at 120 ms
+flash: gametimer_Tick leaves the board in "highlighting" state with flashTimer
+       running; flashTimer_Tick clears the line and scores it
+```
+
+> 注意地板行不可消：`FindFullLines()` / `ClearLines()` 只检查 `i < lineCount - FloorThickness`。写探针填行时要用最后一个可消行（35 行棋盘是第 32 行），填地板行不会触发消行。

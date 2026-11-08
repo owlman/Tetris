@@ -41,6 +41,8 @@
             this.buttonstart = new System.Windows.Forms.Button();
             this.buttonset = new System.Windows.Forms.Button();
             this.gametimer = new System.Windows.Forms.Timer(this.components);
+            this.flashTimer = new System.Windows.Forms.Timer(this.components);
+            this.infoLabel = new System.Windows.Forms.Label();
             this.gamewiew.SuspendLayout();
             this.gaizi.SuspendLayout();
             this.proview.SuspendLayout();
@@ -178,13 +180,27 @@
             // 
             this.gametimer.Interval = 1000;
             this.gametimer.Tick += new System.EventHandler(this.gametimer_Tick);
+            // One shot timer: shows the completed lines for a moment before
+            // they are actually removed.
+            this.flashTimer.Interval = 130;
+            this.flashTimer.Tick += new System.EventHandler(this.flashTimer_Tick);
+            // Score / level readout, to the right of the playfield.
+            this.infoLabel.AutoSize = false;
+            this.infoLabel.BackColor = System.Drawing.SystemColors.Control;
+            this.infoLabel.Font = new System.Drawing.Font("宋体", 9F);
+            this.infoLabel.Location = new System.Drawing.Point(334, 14);
+            this.infoLabel.Name = "infoLabel";
+            this.infoLabel.Size = new System.Drawing.Size(78, 200);
+            this.infoLabel.TabIndex = 4;
+            this.infoLabel.Text = "分数\n0\n\n等级\n1\n\n消行\n0";
             // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.ClientSize = new System.Drawing.Size(337, 392);
+            this.ClientSize = new System.Drawing.Size(420, 392);
+            this.Controls.Add(this.infoLabel);
             this.Controls.Add(this.settmaeg);
             this.Controls.Add(this.proview);
             this.Controls.Add(this.gamewiew);
@@ -220,6 +236,8 @@
         private System.Windows.Forms.Panel gaizi;
         private System.Windows.Forms.Label welcomelabel;
         private System.Windows.Forms.Timer gametimer;
+        private System.Windows.Forms.Timer flashTimer;
+        private System.Windows.Forms.Label infoLabel;
     }
 }
 

@@ -11,6 +11,8 @@
 一个 2006 年浙大（zju）作者用 C# + WinForms 写的俄罗斯方块小游戏，**画面全部由 GDI 手工绘制**，而不是用控件摆放方块。原始版本存在"按键操作时画面闪烁"的缺陷，2026-11 已定位并修复（详见"闪烁修复"一节与配套实验笔记）。
 
 - 玩法：方向键 ↑ 旋转、← → 移动、↓ 加速下落；「开始」启动、「重玩」重置、「说明」看帮助。
+- 计分：1/2/3/4 行分别 100/300/500/800 分 × 当前等级；每 10 行升一级，下落间隔 1000 ms 起、每级 -90 ms、下限 120 ms。
+- 消行有一小段高亮动画（`flashTimer`，130 ms），动画期间 `gametimer` 暂停。
 - 棋盘 20 列 × **35 行**，7 种方块，每种形状固定一种颜色。
   - 行数 = `rowNo * v.Height / v.Width` = `20 * 388 / 220` = **35**（整数除法）。旧文档写的 38 是错的。
   - 格子 11×11 像素（`bw = 220/20`，`bh = 388/35`）。
@@ -194,6 +196,8 @@ GameBoard (纯逻辑层，**不引用 System.Windows.Forms**)
    ├─ cells : List<int[]>   棋盘数据，Empty=0 / Settled=1 / Wall=2
    ├─ Current / Next : Block  当前块 / 下一个块
    ├─ Move / MoveDown / Rotate / Merge / ClearLines / Advance / IsGameOver
+   ├─ FindFullLines()       列出满行（供消行动画先用，不修改棋盘）
+   ├─ Score / Level / Lines / DropInterval   计分与难度
    └─ CanPlace()            带显式边界检查（旧代码会越界崩溃）
 
 Block (数据 + 形状表)
@@ -207,6 +211,8 @@ Block (数据 + 形状表)
 - **`controller == null` 是"未开局"哨兵**。`MainForm` 里所有 Paint 分支都靠它判断要不要画。改了 Paint 逻辑要连带检查这个分支（见下面 proimg 的教训）。
 - `gamewiew` 是 `Panel`，**默认不开双缓冲**；`proimg` 是 `PictureBox`，**默认开双缓冲**。这是实测结论。
 - 类名已统一为 PascalCase（`MainForm` / `GameController` / `GameBoard` / `Block`），**控件名仍是设计器给出的小写**（`gamewiew` / `proimg` / `gaizi` / `gametimer`）—— 控件名改了要同步 `*.Designer.cs`，不要顺手改。
+- **两个定时器的分工**：`gametimer` 负责下落（间隔随等级变化），`flashTimer` 是消行动画的一次性定时器。消行流程是 `gametimer_Tick` 发现满行 → 关掉 `gametimer`、`HighlightLines()` + 启动 `flashTimer` → `flashTimer_Tick` 里真正 `ClearLines()` 并调 `EndTurn()`。**不要跳过 flash 直接 `ClearLines()`**，否则动画失效；也不要在动画期间让 `gametimer` 继续跑，新方块会盖在动画上。
+- `infoLabel` 显示分数 / 等级 / 消行，字符串里的 `\n` 是 C# 转义；`UpdateStatus()` 是唯一刷新它的地方，改计分逻辑后记得同步。
 - `gaizi` 是覆盖在 `gamewiew` 上的 `Dock=Fill` Panel，开局时 `Hide()`、结束时 `Show()` 显示"欢迎尝试游戏"/"游戏失败啦"。
 - `gamewiew.AutoSize` 已从 `true` 改为 `false`（原本与内部 `Dock=Fill` 子控件形成递归布局约束）。
 

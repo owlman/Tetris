@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -19,6 +20,9 @@ namespace owlgame
         /// <summary>Colour of the board walls.</summary>
         private static readonly Color WallColor = Color.Gray;
 
+        /// <summary>Colour flashed over the lines that are about to vanish.</summary>
+        private static readonly Color HighlightColor = Color.White;
+
         private readonly GameBoard board;
         private readonly Panel view;
         private readonly int cellWidth;
@@ -34,7 +38,12 @@ namespace owlgame
         private SolidBrush currentBrush;     // falling block (colour per shape)
         private SolidBrush nextBrush;        // preview block (colour per shape)
         private SolidBrush previewBgBrush;   // preview pane background
+        private SolidBrush highlightBrush;   // flashing lines
         private Pen cellPen;                 // cell outline
+
+        // Lines waiting for the clear animation to finish. Null means "no
+        // animation in progress".
+        private List<int> highlightedLines;
 
         public GameController(Panel view)
         {
@@ -53,6 +62,7 @@ namespace owlgame
             wallBrush = new SolidBrush(WallColor);
             currentBrush = new SolidBrush(board.Current.BlockColor);
             nextBrush = new SolidBrush(board.Next.BlockColor);
+            highlightBrush = new SolidBrush(HighlightColor);
             cellPen = new Pen(view.BackColor);
         }
 
@@ -99,9 +109,38 @@ namespace owlgame
             board.Merge();
         }
 
-        /// <summary>Drop filled lines; returns how many were removed.</summary>
+        /// <summary>Indices of the lines that are currently complete.</summary>
+        public List<int> FindFullLines()
+        {
+            return board.FindFullLines();
+        }
+
+        /// <summary>
+        /// Flash the given lines before they are removed. Purely visual: the
+        /// board is not touched until <see cref="ClearLines(IList{int})"/> runs.
+        /// </summary>
+        public void HighlightLines(List<int> linesToHighlight)
+        {
+            highlightedLines = linesToHighlight;
+        }
+
+        /// <summary>True while a clear animation is showing.</summary>
+        public bool IsHighlighting
+        {
+            get { return highlightedLines != null && highlightedLines.Count > 0; }
+        }
+
+        /// <summary>Remove the given lines and drop the lines above them.</summary>
+        public int ClearLines(IList<int> linesToClear)
+        {
+            highlightedLines = null;
+            return board.ClearLines(linesToClear);
+        }
+
+        /// <summary>Drop every complete line; returns how many were removed.</summary>
         public int ClearLines()
         {
+            highlightedLines = null;
             return board.ClearLines();
         }
 
@@ -144,6 +183,18 @@ namespace owlgame
                         PaintCell(e.Graphics, settledBrush, j, i);
                     else if (board.CellAt(i, j) == GameBoard.Wall)
                         PaintCell(e.Graphics, wallBrush, j, i);
+                }
+
+            // Lines waiting for the clear animation: painted over the cells so
+            // they read as "these are about to disappear".
+            if (highlightedLines != null)
+                foreach (int line in highlightedLines)
+                {
+                    if (line < firstLine || line > lastLine)
+                        continue;
+                    Rectangle band = new Rectangle(0, line * cellHeight,
+                                                   view.Width, cellHeight);
+                    e.Graphics.FillRectangle(highlightBrush, band);
                 }
 
             // Falling block: same clipping rule as the cells above.
@@ -271,6 +322,7 @@ namespace owlgame
             if (wallBrush != null) { wallBrush.Dispose(); wallBrush = null; }
             if (settledBrush != null) { settledBrush.Dispose(); settledBrush = null; }
             if (bgBrush != null) { bgBrush.Dispose(); bgBrush = null; }
+            if (highlightBrush != null) { highlightBrush.Dispose(); highlightBrush = null; }
             if (previewBgBrush != null) { previewBgBrush.Dispose(); previewBgBrush = null; }
         }
     }

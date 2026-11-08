@@ -30,10 +30,32 @@ namespace owlgame
         public const int Settled = 1;
         public const int Wall = 2;
 
+        /// <summary>Lines that have to be cleared to reach the next level.</summary>
+        public const int LinesPerLevel = 10;
+
+        /// <summary>
+        /// Points for clearing 1, 2, 3 or 4 lines at once, before the level
+        /// multiplier. The classic table rewards clearing several lines with one
+        /// block far more than clearing them one by one.
+        /// </summary>
+        private static readonly int[] LineScores = { 0, 100, 300, 500, 800 };
+
+        /// <summary>Drop interval of level 1, in milliseconds.</summary>
+        public const int BaseDropInterval = 1000;
+
+        /// <summary>Fastest drop interval, in milliseconds.</summary>
+        public const int MinDropInterval = 120;
+
+        /// <summary>How much faster each level drops, in milliseconds.</summary>
+        public const int DropIntervalStep = 90;
+
         private readonly int lineCount;
         private readonly List<int[]> cells;
         private Block current;
         private Block next;
+        private int score;
+        private int level;
+        private int lines;
 
         public GameBoard(int lineCount)
         {
@@ -49,6 +71,7 @@ namespace owlgame
             ResetWalls();
             current = SpawnBlock();
             next = SpawnBlock();
+            level = 1;
         }
 
         /// <summary>Number of board lines (rows).</summary>
@@ -62,6 +85,29 @@ namespace owlgame
 
         /// <summary>The preview block shown next to the board.</summary>
         public Block Next { get { return next; } }
+
+        /// <summary>Points scored so far.</summary>
+        public int Score { get { return score; } }
+
+        /// <summary>Current level, starting at 1.</summary>
+        public int Level { get { return level; } }
+
+        /// <summary>Total number of lines cleared.</summary>
+        public int Lines { get { return lines; } }
+
+        /// <summary>
+        /// Current drop interval in milliseconds. Level 1 drops once a second,
+        /// every level is a little faster, and it never goes below
+        /// <see cref="MinDropInterval"/>.
+        /// </summary>
+        public int DropInterval
+        {
+            get
+            {
+                int interval = BaseDropInterval - (level - 1) * DropIntervalStep;
+                return interval < MinDropInterval ? MinDropInterval : interval;
+            }
+        }
 
         /// <summary>Value of one cell: 0 empty, 1 settled, 2 wall.</summary>
         public int CellAt(int line, int column)
@@ -181,33 +227,85 @@ namespace owlgame
         }
 
         /// <summary>
-        /// Drop every completely filled line and push the lines above it down.
-        /// Returns how many lines were removed.
+        /// Indices of the completely filled lines, top to bottom.
+        ///
+        /// Split out from <see cref="ClearLines()"/> so the caller can show a
+        /// short flash on those lines before they disappear; the lines are not
+        /// touched here.
         ///
         /// A fully filled line only needs its playfield part checked: the wall
         /// columns are never part of what the player fills.
         /// </summary>
-        public int ClearLines()
+        public List<int> FindFullLines()
         {
-            int cleared = 0;
+            List<int> full = new List<int>();
             for (int i = 0; i < lineCount - FloorThickness; ++i)
             {
-                bool full = true;
+                bool complete = true;
                 for (int j = WallThickness; j < Columns - WallThickness; ++j)
                     if (cells[i][j] != Settled)
                     {
-                        full = false;
+                        complete = false;
                         break;
                     }
 
-                if (!full)
+                if (complete)
+                    full.Add(i);
+            }
+            return full;
+        }
+
+        /// <summary>
+        /// Remove every completely filled line and push the lines above down.
+        /// Returns how many lines were removed, and awards the points for them.
+        /// </summary>
+        public int ClearLines()
+        {
+            return ClearLines(FindFullLines());
+        }
+
+        /// <summary>
+        /// Remove the given lines and push everything above them down. The lines
+        /// are removed bottom up so the indices stay valid while the list
+        /// shrinks.
+        /// </summary>
+        public int ClearLines(IList<int> linesToClear)
+        {
+            if (linesToClear == null || linesToClear.Count == 0)
+                return 0;
+
+            List<int> sorted = new List<int>(linesToClear);
+            sorted.Sort();
+            for (int k = sorted.Count - 1; k >= 0; --k)
+            {
+                int line = sorted[k];
+                if (line < 0 || line >= lineCount - FloorThickness)
                     continue;
 
-                cells.RemoveAt(i);
+                cells.RemoveAt(line);
                 cells.Insert(0, NewWallLine());
-                cleared++;
             }
-            return cleared;
+
+            AwardScore(sorted.Count);
+            return sorted.Count;
+        }
+
+        /// <summary>
+        /// Add the points for a clear, then update the level. The points use the
+        /// level the clear happened at, so the level is raised afterwards.
+        /// </summary>
+        private void AwardScore(int cleared)
+        {
+            if (cleared <= 0)
+                return;
+
+            int baseScore = cleared < LineScores.Length
+                ? LineScores[cleared]
+                : LineScores[LineScores.Length - 1];
+            score += baseScore * level;
+
+            lines += cleared;
+            level = lines / LinesPerLevel + 1;
         }
 
         /// <summary>Promote the preview block and spawn a new one.</summary>
