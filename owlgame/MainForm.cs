@@ -18,6 +18,15 @@ namespace owlgame
 
         private int flashStep;
 
+        /// <summary>
+        /// Lines waiting for the clear animation, or null. Kept in a field rather
+        /// than in Timer.Tag so that CancelPendingClear() can reliably drop it:
+        /// the timer used to be stoppable only from its own Tick handler, which
+        /// meant a stop / restart / game-over during the animation left it
+        /// running against a board that no longer existed.
+        /// </summary>
+        private System.Collections.Generic.List<int> pendingClear;
+
         // Diagnostic channel. Reflection based styling and link handling are
         // best effort, but a silent failure would hide the flicker quietly
         // coming back. Trace.WriteLine alone is not enough: it carries
@@ -37,6 +46,7 @@ namespace owlgame
             // The controller caches GDI objects now, so it has to be disposed.
             this.FormClosing += delegate
             {
+                CancelPendingClear();
                 if (controller != null)
                 {
                     controller.Dispose();
@@ -51,12 +61,52 @@ namespace owlgame
         /// </summary>
         private void ResetController()
         {
+            // A restart must not inherit a half finished clear animation from the
+            // previous game.
+            CancelPendingClear();
+
             if (controller != null)
             {
                 controller.Dispose();
                 controller = null;
             }
             controller = new GameController(gamewiew);
+        }
+
+        /// <summary>
+        /// Drop a running clear animation without clearing anything. The game is
+        /// either being reset or stopped, so the pending lines are irrelevant.
+        /// </summary>
+        private void CancelPendingClear()
+        {
+            pendingClear = null;
+            flashStep = 0;
+            flashTimer.Enabled = false;
+            flashTimer.Tag = null;
+            if (controller != null)
+                controller.HighlightLines(null);
+        }
+
+        /// <summary>
+        /// Finish a running clear animation immediately: the pending lines are
+        /// removed and the turn is completed. Used when something has to pause the
+        /// game (opening the help dialog) - cancelling instead would leave a full
+        /// line on the board with the clock stopped, i.e. a stuck game.
+        /// </summary>
+        private void CompletePendingClear()
+        {
+            if (pendingClear == null)
+                return;
+
+            System.Collections.Generic.List<int> lines = pendingClear;
+            CancelPendingClear();
+
+            if (controller == null)
+                return;
+
+            controller.ClearLines(lines);
+            gamewiew.Invalidate();
+            UpdateStatus();
         }
 
         /// <summary>
@@ -189,6 +239,9 @@ namespace owlgame
             {
                 buttonback.Enabled = false;
                 gametimer.Enabled = false;
+                // Without this the animation would finish and EndTurn would turn
+                // the clock back on, restarting a game the user just stopped.
+                CancelPendingClear();
                 gaizi.Show();
                 buttonstart.Text = "开始(&E)";
                 welcomelabel.Text = "欢迎尝试游戏";
@@ -224,7 +277,7 @@ namespace owlgame
                 gametimer.Enabled = false;
                 controller.HighlightLines(full);
                 gamewiew.Invalidate();
-                flashTimer.Tag = full;
+                pendingClear = full;
                 flashStep = 0;
                 flashTimer.Enabled = true;
                 return;
@@ -245,6 +298,7 @@ namespace owlgame
             if (controller.IsGameOver())
             {
                 gametimer.Enabled = false;
+                CancelPendingClear();
                 gaizi.Show();
                 welcomelabel.Text = "你失败了… 分数 " + controller.Board.Score;
                 // Keep the start button usable and restore its caption so a
@@ -275,11 +329,10 @@ namespace owlgame
             }
 
             flashTimer.Enabled = false;
-            System.Collections.Generic.List<int> full =
-                flashTimer.Tag as System.Collections.Generic.List<int>;
-            flashTimer.Tag = null;
+            System.Collections.Generic.List<int> full = pendingClear;
+            pendingClear = null;
 
-            if (full != null)
+            if (full != null && controller != null)
                 controller.ClearLines(full);
 
             gamewiew.Invalidate();
@@ -366,6 +419,10 @@ namespace owlgame
         {
             if (gametimer.Enabled)
             {
+                // Settle a running clear animation first: leaving it pending while
+                // the dialog runs would remove the lines in the background and
+                // re-enable the clock behind a modal window.
+                CompletePendingClear();
                 gametimer.Enabled = false;
                 if ((new gamehelp()).ShowDialog() == DialogResult.OK)
                     gametimer.Enabled = true;

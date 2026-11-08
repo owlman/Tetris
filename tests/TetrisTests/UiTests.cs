@@ -318,6 +318,103 @@ namespace TetrisTests
             }
         }
 
+        /// <summary>Pumps the message loop for a while so timers can fire.</summary>
+        private static void Pump(int milliseconds)
+        {
+            DateTime end = DateTime.Now.AddMilliseconds(milliseconds);
+            while (DateTime.Now < end)
+            {
+                Application.DoEvents();
+                System.Threading.Thread.Sleep(5);
+            }
+        }
+
+        /// <summary>
+        /// Starts a game, completes a line and runs one tick so the clear animation
+        /// is in flight. Returns the controller.
+        /// </summary>
+        private static GameController EnterClearAnimation(MainForm form)
+        {
+            Button start = (Button)Field(form, "buttonstart");
+            if (!start.Text.StartsWith("开始"))
+            {
+                start.PerformClick();
+                Settle();
+            }
+            start.PerformClick();
+            Settle();
+
+            Timer clock = (Timer)Field(form, "gametimer");
+            GameController controller = (GameController)Field(form, "controller");
+            clock.Enabled = false;
+            PrepareFullLine(controller);
+
+            PrivateMethod("gametimer_Tick").Invoke(form, new object[] { null, EventArgs.Empty });
+            Settle();
+            return controller;
+        }
+
+        [Test]
+        public void RestartDuringTheClearAnimationDropsIt()
+        {
+            // Found by an interaction probe: the flash timer could only stop itself,
+            // so restarting mid animation left it running against the old board.
+            using (MainForm form = OpenForm())
+            {
+                EnterClearAnimation(form);
+                Timer flash = (Timer)Field(form, "flashTimer");
+                Assert.IsTrue(flash.Enabled, "precondition: the animation is running");
+
+                ((Button)Field(form, "buttonback")).PerformClick();
+                Settle();
+
+                Assert.IsFalse(flash.Enabled, "restarting must drop the pending clear");
+            }
+        }
+
+        [Test]
+        public void StopDuringTheClearAnimationKeepsTheClockStopped()
+        {
+            // The animation's completion path calls EndTurn, which turns the clock
+            // back on - so a pending clear had to be cancelled when stopping.
+            using (MainForm form = OpenForm())
+            {
+                EnterClearAnimation(form);
+                Timer clock = (Timer)Field(form, "gametimer");
+                Timer flash = (Timer)Field(form, "flashTimer");
+                Button start = (Button)Field(form, "buttonstart");
+                Assert.IsTrue(flash.Enabled, "precondition: the animation is running");
+
+                start.PerformClick();      // stop the game
+                Settle();
+                Assert.IsFalse(clock.Enabled, "the clock is stopped");
+
+                Pump(350);                 // long enough for the animation to have finished
+                Assert.IsFalse(clock.Enabled, "a pending animation must not restart the clock");
+                Assert.IsTrue(start.Text.StartsWith("开始"), "the button still reads start");
+            }
+        }
+
+        [Test]
+        public void GameOverDuringTheClearAnimationStopsTheClock()
+        {
+            using (MainForm form = OpenForm())
+            {
+                GameController controller = EnterClearAnimation(form);
+                Timer clock = (Timer)Field(form, "gametimer");
+
+                // Fill line 1: clearing pushes everything above the removed line
+                // down by one, so this content ends up on line 2 - the line that
+                // IsGameOver() checks. Filling line 2 directly would not work.
+                for (int j = GameBoard.WallThickness + 1;
+                     j < GameBoard.Columns - GameBoard.WallThickness; j++)
+                    controller.Board.Cells[1][j] = GameBoard.Settled;
+
+                Pump(350);
+                Assert.IsFalse(clock.Enabled, "the clock must stay stopped once the game is over");
+            }
+        }
+
         [Test]
         public void HelpWindowMatchesTheModernStyle()
         {

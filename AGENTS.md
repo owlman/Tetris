@@ -221,7 +221,8 @@ Block (数据 + 形状表)
 - **`controller == null` 是"未开局"哨兵**。`MainForm` 里所有 Paint 分支都靠它判断要不要画。改了 Paint 逻辑要连带检查这个分支（见下面 proimg 的教训）。
 - `gamewiew` 是 `Panel`，**默认不开双缓冲**；`proimg` 是 `PictureBox`，**默认开双缓冲**。这是实测结论。
 - 类名已统一为 PascalCase（`MainForm` / `GameController` / `GameBoard` / `Block`），**控件名仍是设计器给出的小写**（`gamewiew` / `proimg` / `gaizi` / `gametimer`）—— 控件名改了要同步 `*.Designer.cs`，不要顺手改。
-- **两个定时器的分工**：`gametimer` 负责下落（间隔随等级变化），`flashTimer` 是消行动画的一次性定时器。消行流程是 `gametimer_Tick` 发现满行 → 关掉 `gametimer`、`HighlightLines()` + 启动 `flashTimer` → `flashTimer_Tick` 里真正 `ClearLines()` 并调 `EndTurn()`。**不要跳过 flash 直接 `ClearLines()`**，否则动画失效；也不要在动画期间让 `gametimer` 继续跑，新方块会盖在动画上。
+- **两个定时器的分工**：`gametimer` 负责下落（间隔随等级变化），`flashTimer` 驱动消行动画（45 ms × 3 帧淡出）。消行流程是 `gametimer_Tick` 发现满行 → 关掉 `gametimer`、`HighlightLines()` + `flashTimer` 启动 → 3 帧后 `ClearLines()` 并调 `EndTurn()`。
+- ⚠️ **`flashTimer` 必须能从外部取消**：它的完成路径会调 `EndTurn()`，而 `EndTurn` 会把 `gametimer` 打开。所以「停止 / 重玩 / 游戏结束 / 关闭窗体」都必须先调 `CancelPendingClear()`，「打开帮助对话框」必须调 `CompletePendingClear()`（立刻消完再暂停，否则会留一行满行且计时器停住 = 卡死）。待清行存在 `pendingClear` 字段，**不要塞进 `Timer.Tag`** —— 那样取消时容易漏清。
 - 读数由三个独立 Label 承担：`scoreValue` / `levelValue` / `linesValue`（另有 `scoreCaption` 等三个灰色小标题）。`UpdateStatus()` 是唯一刷新它们的地方，改计分逻辑后记得同步。
 - **配色一律定义在 `GameController` 且对外暴露**（`WallColour` / `SettledColour` / `HighlightColour` / `CellGapPixels`）。像素测试从这些常量推导期望值 —— 换配色只改这里，不要去改测试里的数字。
 - **`gamewiew` 固定 220×388 不要动**：`lineCount = 20 × H / W = 35`、格子 `11×11`，这两个数被脏区计算与像素基线同时依赖。现代化改外围，不改棋盘几何。

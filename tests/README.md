@@ -57,8 +57,8 @@ Results: 56 passed, 1 failed, 0 skipped, 57 total (1889 ms)
 ## 实测基线
 
 ```
-单元测试（--skip-ui）：64 passed, 0 failed, 8 skipped, 72 total
-单元测试（完整）    ：72 passed, 0 failed, 0 skipped, 72 total
+单元测试（--skip-ui）：64 passed, 0 failed, 12 skipped, 76 total
+单元测试（完整）    ：76 passed, 0 failed, 0 skipped, 76 total
 ```
 
 `PixelSmoke`（220×388 棋盘，`cellWidth=11` / `cellHeight=11`，**35 行**）：

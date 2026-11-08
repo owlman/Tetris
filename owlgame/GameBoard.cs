@@ -288,9 +288,18 @@ namespace owlgame
             List<int> sorted = new List<int>(linesToClear);
             sorted.Sort();
 
+            // Duplicate indices must be dropped: deleting the same row twice means
+            // the second RemoveAt hits a different row, and counting it twice also
+            // awards points for a line that was never cleared. The list comes from
+            // FindFullLines() in normal use, but ClearLines(IList) is public.
             int cleared = 0;
+            int previous = int.MinValue;
             foreach (int line in sorted)
             {
+                if (line == previous)
+                    continue;
+                previous = line;
+
                 if (line < 0 || line >= lineCount - FloorThickness)
                     continue;
 

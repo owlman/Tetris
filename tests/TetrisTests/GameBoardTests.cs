@@ -611,6 +611,24 @@ namespace TetrisTests
         }
 
         [Test]
+        public void ClearLinesIgnoresDuplicateIndices()
+        {
+            // Found by a stress probe: passing the same line twice removed it once
+            // but returned 2 and awarded points for two lines. The duplicate has to
+            // be dropped, not counted.
+            GameBoard board = new GameBoard(Lines);
+            FillLine(board, 20);
+
+            List<int> duplicates = new List<int>();
+            duplicates.Add(20);
+            duplicates.Add(20);
+
+            Assert.AreEqual(1, board.ClearLines(duplicates), "the duplicate must be ignored");
+            Assert.AreEqual(1, board.Lines, "only one line was actually cleared");
+            Assert.AreEqual(100, board.Score, "points for one line, not two");
+        }
+
+        [Test]
         public void ClearLinesIgnoresOutOfRangeIndices()
         {
             GameBoard board = new GameBoard(Lines);
