@@ -319,6 +319,45 @@ namespace TetrisTests
         }
 
         [Test]
+        public void HelpWindowMatchesTheModernStyle()
+        {
+            // The help dialog was the last window still using 楷体_GB2312 with a
+            // GroupBox and a 75x23 system button. This pins the typeface and the
+            // key-cap presentation so a future edit cannot quietly bring the old
+            // look back.
+            Type helpType = typeof(MainForm).Assembly.GetType("owlgame.gamehelp");
+            Assert.IsNotNull(helpType, "the help window type exists");
+
+            using (Form help = (Form)Activator.CreateInstance(helpType))
+            {
+                Assert.AreEqual("微软雅黑", help.Font.Name, "help window uses the app typeface");
+
+                Label up = (Label)Field(help, "rotateKey");
+                Label left = (Label)Field(help, "leftKey");
+                Label right = (Label)Field(help, "rightKey");
+                Label down = (Label)Field(help, "downKey");
+
+                Assert.IsNotNull(up, "rotate key cap exists");
+                Assert.IsNotNull(left, "left key cap exists");
+                Assert.IsNotNull(right, "right key cap exists");
+                Assert.IsNotNull(down, "down key cap exists");
+
+                Assert.AreEqual("↑", up.Text, "rotate uses the up arrow");
+                Assert.AreEqual("←", left.Text, "left uses the left arrow");
+                Assert.AreEqual("→", right.Text, "right uses the right arrow");
+                Assert.AreEqual("↓", down.Text, "down uses the down arrow");
+
+                foreach (Label key in new Label[] { up, left, right, down })
+                    Assert.AreEqual("微软雅黑", key.Font.Name, "key caps use the app typeface");
+
+                Button ok = (Button)Field(help, "button1");
+                Assert.IsNotNull(ok, "confirm button exists");
+                Assert.AreEqual(System.Windows.Forms.FlatStyle.Flat, ok.FlatStyle,
+                    "the confirm button is flat like the main window buttons");
+            }
+        }
+
+        [Test]
         public void BoardKeepsItsWallsWhilePlaying()
         {
             using (MainForm form = OpenForm())
