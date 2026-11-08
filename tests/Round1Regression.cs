@@ -1,12 +1,18 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Reflection;
 using System.Windows.Forms;
 
-// Round-1 regression probe: verifies fixes 1 / 3 / 6 / 14 / 16.
+// Round-1 regression probe, rewritten after the round-3 refactor.
+//
+// The rules now live in GameBoard, which does not reference WinForms, so most
+// checks can drive it directly instead of reaching into the controller with
+// reflection. Only the two UI-side checks (link validation, button state) still
+// need the form.
 class ProbeRound1
 {
-    static owlgame.mainForm form;
+    static owlgame.MainForm form;
     static System.Text.StringBuilder sb = new System.Text.StringBuilder();
     static int failures = 0;
 
@@ -17,28 +23,163 @@ class ProbeRound1
         if (!ok) failures++;
     }
 
-    static object Get(object target, string name, bool isStatic)
+    static object Get(object target, string name)
     {
-        BindingFlags f = BindingFlags.Public | BindingFlags.NonPublic
-                       | (isStatic ? BindingFlags.Static : BindingFlags.Instance);
-        FieldInfo fi = target == null ? typeof(owlgame.mainForm).GetField(name, f)
-                                      : target.GetType().GetField(name, f);
+        FieldInfo fi = target.GetType().GetField(name,
+            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
         return fi == null ? null : fi.GetValue(target);
     }
 
-    static string Shape(object blk)
+    static string ShapeOf(owlgame.Block b)
     {
-        int[,] m = (int[,])Get(blk, "matblock", false);
         string s = "";
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < owlgame.Block.MatrixSize; i++)
         {
-            for (int j = 0; j < 5; j++) s += (m[i, j] == 1 ? "#" : ".");
+            for (int j = 0; j < owlgame.Block.MatrixSize; j++)
+                s += (b.Matrix[i, j] == 1 ? "#" : ".");
             s += "|";
         }
         return s;
     }
 
-    static Color ColorOf(object blk) { return (Color)Get(blk, "colorblock", false); }
+    [STAThread]
+    static int Main()
+    {
+        Application.EnableVisualStyles();
+        form = new owlgame.MainForm();
+        form.Show();
+        Application.DoEvents();
+
+        // ---- setup diagnostics must stay empty ----
+        string diag = (string)typeof(owlgame.MainForm).GetField("diagnostics",
+            BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public).GetValue(null);
+        Check("no setup failure recorded", diag == null, "diagnostics=[" + (diag ?? "null") + "]");
+
+        // ---- random shapes: two blocks created back to back must differ ----
+        int samePairs = 0;
+        for (int k = 0; k < 20; k++)
+        {
+            owlgame.Block a = new owlgame.Block(8, 0);
+            owlgame.Block b = new owlgame.Block(8, 0);
+            if (ShapeOf(a) == ShapeOf(b) && a.BlockColor == b.BlockColor) samePairs++;
+        }
+        // A few collisions are normal randomness (~2.9 of 20); before the fix
+        // it was 20 / 20 every time.
+        Check("back-to-back blocks differ", samePairs <= 8,
+              "identical pairs = " + samePairs + " / 20 (random expectation ~2.9, before fix 20/20)");
+
+        // ---- shape variety ----
+        HashSet<string> shapes = new HashSet<string>();
+        for (int k = 0; k < 60; k++) shapes.Add(ShapeOf(new owlgame.Block(8, 0)));
+        Check("shape variety", shapes.Count >= 5, "distinct shapes = " + shapes.Count + " / 7");
+
+        // ---- colour is derived from the shape ----
+        Dictionary<string, Color> colourOf = new Dictionary<string, Color>();
+        bool stable = true;
+        string conflict = "";
+        for (int k = 0; k < 200; k++)
+        {
+            owlgame.Block b = new owlgame.Block(8, 0);
+            string sh = ShapeOf(b);
+            if (colourOf.ContainsKey(sh))
+            {
+                if (colourOf[sh] != b.BlockColor) { stable = false; conflict = sh; break; }
+            }
+            else colourOf[sh] = b.BlockColor;
+        }
+        Check("shape -> colour stable", stable,
+              "distinct shapes=" + colourOf.Count + (conflict == "" ? "" : " conflict=" + conflict));
+        Check("seven colours", new HashSet<Color>(colourOf.Values).Count == 7,
+              "distinct colours = " + new HashSet<Color>(colourOf.Values).Count);
+
+        // ---- a fresh board must not show the same block twice ----
+        bool anyDifferent = false;
+        for (int k = 0; k < 10 && !anyDifferent; k++)
+        {
+            owlgame.GameBoard board = new owlgame.GameBoard(35);
+            if (ShapeOf(board.Current) != ShapeOf(board.Next)
+                || board.Current.BlockColor != board.Next.BlockColor)
+                anyDifferent = true;
+        }
+        Check("board: current != next", anyDifferent, "checked 10 fresh boards");
+
+        // ---- rules that are now testable without a message loop ----
+        owlgame.GameBoard gb = new owlgame.GameBoard(35);
+        int startRow = gb.Current.Row;
+        gb.MoveDown(1);
+        Check("MoveDown advances one line", gb.Current.Row == startRow + 1,
+              "row " + startRow + " -> " + gb.Current.Row);
+
+        // out-of-bounds requests must be refused, not crash
+        bool refused;
+        try { refused = !gb.CanPlace(-1, 0, gb.Current.Matrix); }
+        catch (Exception ex) { refused = false; Log("       threw: " + ex.GetType().Name); }
+        Check("CanPlace refuses column -1", refused, "no exception, returned false");
+
+        bool refusedBelow;
+        try { refusedBelow = !gb.CanPlace(8, 999, gb.Current.Matrix); }
+        catch (Exception ex) { refusedBelow = false; Log("       threw: " + ex.GetType().Name); }
+        Check("CanPlace refuses below the floor (used to throw)", refusedBelow,
+              "no exception, returned false");
+
+        // a full line must be cleared
+        owlgame.GameBoard gb2 = new owlgame.GameBoard(35);
+        for (int j = owlgame.GameBoard.WallThickness; j < owlgame.GameBoard.Columns - owlgame.GameBoard.WallThickness; j++)
+            gb2.Cells[30][j] = owlgame.GameBoard.Settled;
+        int cleared = gb2.ClearLines();
+        Check("ClearLines removes a full line", cleared == 1, "cleared=" + cleared);
+
+        // three lines in a row must all go
+        owlgame.GameBoard gb3 = new owlgame.GameBoard(35);
+        for (int line = 28; line <= 30; line++)
+            for (int j = owlgame.GameBoard.WallThickness; j < owlgame.GameBoard.Columns - owlgame.GameBoard.WallThickness; j++)
+                gb3.Cells[line][j] = owlgame.GameBoard.Settled;
+        int cleared3 = gb3.ClearLines();
+        Check("ClearLines removes three stacked lines", cleared3 == 3, "cleared=" + cleared3);
+
+        // ---- fix 16: game over keeps the start button usable ----
+        Button bs = (Button)Get(form, "buttonstart");
+        bs.PerformClick();
+        Application.DoEvents();
+        object gc = Get(form, "controller");
+        owlgame.GameBoard live = (owlgame.GameBoard)gc.GetType().GetProperty("Board").GetValue(gc, null);
+        for (int j = owlgame.GameBoard.WallThickness + 1; j < owlgame.GameBoard.Columns - owlgame.GameBoard.WallThickness; j++)
+            live.Cells[2][j] = owlgame.GameBoard.Settled;
+
+        Timer t = (Timer)Get(form, "gametimer");
+        t.Enabled = true;
+        MethodInfo tick = typeof(owlgame.MainForm).GetMethod("gametimer_Tick",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        // push the block down until it lands, then run one tick
+        while (live.MoveDown(1)) { }
+        tick.Invoke(form, new object[] { null, EventArgs.Empty });
+        Application.DoEvents();
+
+        Check("start button enabled after game over", bs.Enabled,
+              "Enabled=" + bs.Enabled + " text=[" + bs.Text + "]");
+        Check("start caption restored", bs.Text == "开始(&E)", "text=[" + bs.Text + "]");
+
+        // ---- fix 6: non-http(s) link must be refused ----
+        System.Text.StringBuilder trace = new System.Text.StringBuilder();
+        System.Diagnostics.Trace.Listeners.Add(new TextListener(trace));
+        LinkLabel web = (LinkLabel)Get(form, "myweb");
+        object oldTag = web.Tag;
+        web.Tag = "ftp://example.com/payload";
+        MethodInfo linkClick = typeof(owlgame.MainForm).GetMethod("myweb_LinkClicked",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        linkClick.Invoke(form, new object[] { web, null });
+        web.Tag = oldTag;
+        Check("non-http(s) link refused",
+              trace.ToString().Contains("refused to open non-http(s) link"),
+              "trace=[" + trace.ToString().Trim() + "]");
+
+        form.Close();
+        Log("");
+        Log(failures == 0 ? "RESULT: ALL PASS" : "RESULT: " + failures + " FAILURE(S)");
+        System.IO.File.WriteAllText("out_round1.txt", sb.ToString(),
+            new System.Text.UTF8Encoding(false));
+        return failures;
+    }
 
     class TextListener : System.Diagnostics.TraceListener
     {
@@ -46,125 +187,5 @@ class ProbeRound1
         public TextListener(System.Text.StringBuilder sb) { _sb = sb; }
         public override void Write(string message) { _sb.Append(message); }
         public override void WriteLine(string message) { _sb.AppendLine(message); }
-    }
-
-    [STAThread]
-    static int Main()
-    {
-        Application.EnableVisualStyles();
-        form = new owlgame.mainForm();
-        form.Show();
-        Application.DoEvents();
-
-        // ---- fix 3: anti-flicker setup must not have failed silently ----
-        string diag = (string)typeof(owlgame.mainForm).GetField("diagnostics",
-            BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public).GetValue(null);
-        Check("fix3 no setup failure recorded", diag == null, "diagnostics=[" + (diag ?? "null") + "]");
-
-        Type blockType = typeof(owlgame.mainForm).Assembly.GetType("owlgame.block");
-        Type ctrlType = typeof(owlgame.mainForm).Assembly.GetType("owlgame.gameController");
-
-        // ---- fix 1: two blocks created back to back must differ ----
-        int samePairs = 0;
-        for (int k = 0; k < 20; k++)
-        {
-            object a = Activator.CreateInstance(blockType, new object[] { 8, 0 });
-            object b = Activator.CreateInstance(blockType, new object[] { 8, 0 });
-            if (Shape(a) == Shape(b) && ColorOf(a) == ColorOf(b)) samePairs++;
-        }
-        // 20 draws give a ~1/7 chance of two equal shapes, so a few collisions
-        // are normal randomness. Before the fix it was 20 / 20 every time.
-        Check("fix1 back-to-back blocks differ", samePairs <= 8,
-              "identical pairs = " + samePairs + " / 20 (random expectation ~2.9, before fix 20/20)");
-
-        // ---- fix 1b: rotation must not consume the random sequence ----
-        // Shape distribution over 60 creations should cover more than 1 shape.
-        System.Collections.Generic.HashSet<string> shapes =
-            new System.Collections.Generic.HashSet<string>();
-        for (int k = 0; k < 60; k++)
-        {
-            object b = Activator.CreateInstance(blockType, new object[] { 8, 0 });
-            shapes.Add(Shape(b));
-        }
-        Check("fix1 shape variety", shapes.Count >= 5, "distinct shapes = " + shapes.Count + " / 7");
-
-        // ---- fix 14: colour is derived from shape (same shape -> same colour) ----
-        System.Collections.Generic.Dictionary<string, Color> map =
-            new System.Collections.Generic.Dictionary<string, Color>();
-        bool colourConsistent = true;
-        string conflict = "";
-        for (int k = 0; k < 200; k++)
-        {
-            object b = Activator.CreateInstance(blockType, new object[] { 8, 0 });
-            string sh = Shape(b);
-            Color c = ColorOf(b);
-            if (map.ContainsKey(sh))
-            {
-                if (map[sh] != c) { colourConsistent = false; conflict = sh; break; }
-            }
-            else map[sh] = c;
-        }
-        Check("fix14 shape->colour stable", colourConsistent,
-              "distinct shapes=" + map.Count + (conflict == "" ? "" : " conflict=" + conflict));
-
-        System.Collections.Generic.HashSet<Color> colours =
-            new System.Collections.Generic.HashSet<Color>(map.Values);
-        Check("fix14 seven colours", colours.Count == 7, "distinct colours = " + colours.Count);
-
-        // ---- fix 1 (game level): now != wait right after start ----
-        Button bs = (Button)Get(form, "buttonstart", false);
-        bs.PerformClick();
-        Application.DoEvents();
-        object gc = Get(form, "controller", false);
-        object now = Get(gc, "now", false);
-        object wait = Get(gc, "wait", false);
-        Check("fix1 start: now != wait",
-              Shape(now) != Shape(wait) || ColorOf(now) != ColorOf(wait),
-              "now=" + Shape(now) + " wait=" + Shape(wait));
-
-        // ---- fix 16: game over keeps start button usable ----
-        // Force game over by filling the top row through the controller map.
-        Timer t = (Timer)Get(form, "gametimer", false);
-        System.Collections.IList board =
-            (System.Collections.IList)Get(gc, "map", false);
-        for (int j = 3; j < 18; j++) ((int[])board[2])[j] = 1;   // board[2] == row that triggers fall()
-        t.Enabled = true;
-        // Trigger one tick with a block that cannot move down.
-        MethodInfo tick = typeof(owlgame.mainForm).GetMethod("gametimer_Tick",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        // Make the current block already resting on the pile: push it down until it stops.
-        MethodInfo down = ctrlType.GetMethod("down");
-        while ((bool)down.Invoke(gc, new object[] { 1 })) { }
-        tick.Invoke(form, new object[] { null, EventArgs.Empty });
-        Application.DoEvents();
-
-        Button bstart = (Button)Get(form, "buttonstart", false);
-        Label wl = (Label)Get(form, "welcomelabel", false);
-        Check("fix16 start enabled after game over", bstart.Enabled,
-              "Enabled=" + bstart.Enabled + " text=[" + bstart.Text + "]");
-        Check("fix16 caption restored", bstart.Text == "开始(&E)", "text=[" + bstart.Text + "]");
-        Log("       welcome label = [" + wl.Text + "]");
-        Log("       timer enabled = " + t.Enabled);
-
-        // ---- fix 6: non-http(s) Tag must be refused, not launched ----
-        System.Text.StringBuilder traceLog = new System.Text.StringBuilder();
-        System.Diagnostics.Trace.Listeners.Add(new TextListener(traceLog));
-        LinkLabel web = (LinkLabel)Get(form, "myweb", false);
-        object oldTag = web.Tag;
-        web.Tag = "ftp://example.com/payload";
-        MethodInfo linkClick = typeof(owlgame.mainForm).GetMethod("myweb_LinkClicked",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        linkClick.Invoke(form, new object[] { web, null });
-        web.Tag = oldTag;
-        Check("fix6 non-http(s) link refused",
-              traceLog.ToString().Contains("refused to open non-http(s) link"),
-              "trace=[" + traceLog.ToString().Trim() + "]");
-
-        form.Close();
-
-        Log("");
-        Log(failures == 0 ? "RESULT: ALL PASS" : "RESULT: " + failures + " FAILURE(S)");
-        System.IO.File.WriteAllText("out_round1.txt", sb.ToString(), new System.Text.UTF8Encoding(false));
-        return failures;
     }
 }

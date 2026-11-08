@@ -55,11 +55,12 @@
 Tetris/
 ├── owlgame/                 # 唯一的项目目录（项目名 MuscoviteBlock，程序集名 owlgame）
 │   ├── MuscoviteBlock.csproj # VS2005 时代的老式 csproj（Format 12.00，无 SDK-style）
-│   ├── Program.cs           # 入口：EnableVisualStyles + Run(new mainForm())
-│   ├── mainForm.cs          # 主窗体逻辑（自绘派发的唯一入口）
-│   ├── mainForm.Designer.cs # 主窗体布局（设计器生成，勿手改）
-│   ├── gamecontroller.cs    # 游戏核心：棋盘数据 + draw/drawwait 自绘
-│   ├── block.cs             # 方块定义：7 种形状的 5×5 矩阵 + 随机取色
+│   ├── Program.cs           # 入口：EnableVisualStyles + Run(new MainForm())
+│   ├── MainForm.cs          # 主窗体逻辑（自绘派发的唯一入口）
+│   ├── MainForm.Designer.cs # 主窗体布局（设计器生成，勿手改）
+│   ├── GameBoard.cs         # **纯逻辑**：棋盘数据 + 移动/旋转/落子/消行/失败判定（不引用 WinForms）
+│   ├── GameController.cs    # **绘制**：像素几何 + GDI 资源 + 脏矩形重绘，规则全部委托给 GameBoard
+│   ├── Block.cs             # 方块定义：7 种形状的 5×5 矩阵 + 形状固定配色
 │   ├── gamehelp.cs(+Designer) # 「说明」帮助窗体
 │   ├── mainForm.resx / gamehelp.resx
 │   ├── Properties/          # AssemblyInfo / Resources / Settings
@@ -174,29 +175,38 @@ with open(path, 'w', encoding='utf-8-sig', newline='\r\n') as f:
 
 ## 架构要点
 
-### 三个类，一条数据流
+### 四个类，逻辑与绘制分离（第 3 轮重构）
 
 ```
-mainForm (UI + 事件)
+MainForm (UI + 事件)
    │  持 controller 引用；controller == null 表示"未开局"
-   ├─ gamewiew_Paint(e)  ──► controller.draw(e)          画主棋盘（Panel 自绘）
-   ├─ proimg_Paint(e)    ──► controller.drawwait(proimg,e) 画"下一个"预览（PictureBox 自绘）
-   └─ gamewiew_PreviewKeyDown ─► controller.transpose()/move()/down()
+   ├─ gamewiew_Paint(e)  ──► controller.Draw(e)              画主棋盘（Panel 自绘）
+   ├─ proimg_Paint(e)    ──► controller.DrawPreview(proimg,e) 画"下一个"预览（PictureBox 自绘）
+   └─ gamewiew_PreviewKeyDown ─► controller.Rotate()/Move()/Down()
 
-gameController (纯逻辑 + 自绘)
-   ├─ map : List<int[]>     棋盘数据，1=方块 2=墙 0=空
-   ├─ now / wait : block    当前块 / 下一个块
-   ├─ bw / bh : int         格子宽高，由 view 的宽高算出
-   └─ draw() / drawwait()   两个 GDI 绘制入口
+GameController (绘制层，引用 WinForms)
+   ├─ board : GameBoard     规则全部委托给它
+   ├─ cellWidth / cellHeight : int   由 view 宽高算出
+   ├─ Draw() / DrawPreview()        两个 GDI 绘制入口
+   └─ InvalidateBlock()     只失效「旧位置 ∪ 新位置」
 
-block (数据)
-   └─ matblock[5,5] / curx / cury / colorblock
+GameBoard (纯逻辑层，**不引用 System.Windows.Forms**)
+   ├─ cells : List<int[]>   棋盘数据，Empty=0 / Settled=1 / Wall=2
+   ├─ Current / Next : Block  当前块 / 下一个块
+   ├─ Move / MoveDown / Rotate / Merge / ClearLines / Advance / IsGameOver
+   └─ CanPlace()            带显式边界检查（旧代码会越界崩溃）
+
+Block (数据 + 形状表)
+   └─ Matrix[5,5] / Column / Row / BlockColor
 ```
+
+**为什么这样拆**：`GameBoard` 不依赖 WinForms，规则可以直接 new 出来断言（`Round1Regression` 现在就是这么测消行与边界），不必再靠反射掏 `controller` 的私有字段。
 
 ### 关键状态约定
 
-- **`controller == null` 是"未开局"哨兵**。`mainForm` 里所有 Paint 分支都靠它判断要不要画。改了 Paint 逻辑要连带检查这个分支（见下面 proimg 的教训）。
+- **`controller == null` 是"未开局"哨兵**。`MainForm` 里所有 Paint 分支都靠它判断要不要画。改了 Paint 逻辑要连带检查这个分支（见下面 proimg 的教训）。
 - `gamewiew` 是 `Panel`，**默认不开双缓冲**；`proimg` 是 `PictureBox`，**默认开双缓冲**。这是实测结论。
+- 类名已统一为 PascalCase（`MainForm` / `GameController` / `GameBoard` / `Block`），**控件名仍是设计器给出的小写**（`gamewiew` / `proimg` / `gaizi` / `gametimer`）—— 控件名改了要同步 `*.Designer.cs`，不要顺手改。
 - `gaizi` 是覆盖在 `gamewiew` 上的 `Dock=Fill` Panel，开局时 `Hide()`、结束时 `Show()` 显示"欢迎尝试游戏"/"游戏失败啦"。
 - `gamewiew.AutoSize` 已从 `true` 改为 `false`（原本与内部 `Dock=Fill` 子控件形成递归布局约束）。
 

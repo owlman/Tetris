@@ -1,6 +1,6 @@
 ﻿namespace owlgame
 {
-    partial class mainForm
+    partial class MainForm
     {
         /// <summary>
         /// 必需的设计器变量。
@@ -179,7 +179,7 @@
             this.gametimer.Interval = 1000;
             this.gametimer.Tick += new System.EventHandler(this.gametimer_Tick);
             // 
-            // mainForm
+            // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
@@ -190,10 +190,10 @@
             this.Controls.Add(this.gamewiew);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
-            this.Name = "mainForm";
+            this.Name = "MainForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "俄罗斯方块";
-            this.Load += new System.EventHandler(this.mainForm_Load);
+            this.Load += new System.EventHandler(this.MainForm_Load);
             this.gamewiew.ResumeLayout(false);
             this.gaizi.ResumeLayout(false);
             this.gaizi.PerformLayout();

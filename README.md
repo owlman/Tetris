@@ -82,11 +82,12 @@ cp owlgame.pdb "<项目路径>/owlgame/bin/Debug/owlgame.pdb"
 Tetris/
 ├── owlgame/                    # 唯一的项目目录（项目名 MuscoviteBlock，程序集名 owlgame）
 │   ├── MuscoviteBlock.csproj   # VS2005 时代的老式 csproj（Format 12.00，非 SDK-style）
-│   ├── Program.cs              # 入口：EnableVisualStyles + Run(new mainForm())
-│   ├── mainForm.cs             # 主窗体逻辑（自绘派发的唯一入口）
-│   ├── mainForm.Designer.cs    # 主窗体布局（设计器生成）
-│   ├── gamecontroller.cs       # 游戏核心：棋盘数据 + draw/drawwait 自绘
-│   ├── block.cs                # 方块定义：7 种形状的 5×5 矩阵 + 随机取色
+│   ├── Program.cs              # 入口：EnableVisualStyles + Run(new MainForm())
+│   ├── MainForm.cs             # 主窗体逻辑（自绘派发的唯一入口）
+│   ├── MainForm.Designer.cs    # 主窗体布局（设计器生成）
+│   ├── GameBoard.cs            # 纯逻辑：棋盘 + 移动/旋转/落子/消行/失败判定（不引用 WinForms）
+│   ├── GameController.cs       # 绘制：像素几何 + GDI 资源 + 脏矩形重绘
+│   ├── Block.cs                # 方块定义：7 种形状的 5×5 矩阵 + 形状固定配色
 │   ├── gamehelp.cs(+Designer)  # 「说明」帮助窗体
 │   ├── *.resx / Properties/    # 资源与程序集信息
 │   └── bin/Debug/              # 已跟踪：owlgame.exe / owlgame.pdb
@@ -99,24 +100,30 @@ Tetris/
 
 ## 源码架构
 
-三个类，一条数据流：
+四个类，逻辑与绘制分离：
 
 ```bash
-mainForm (UI + 事件)
+MainForm (UI + 事件)
    │  持 controller 引用；controller == null 表示「未开局」
-   ├─ gamewiew_Paint(e)   ──► controller.draw(e)           画主棋盘（Panel 自绘）
-   ├─ proimg_Paint(e)     ──► controller.drawwait(proimg,e) 画「下一个」预览（PictureBox 自绘）
-   └─ gamewiew_PreviewKeyDown ─► controller.transpose() / move() / down()
+   ├─ gamewiew_Paint(e)   ──► controller.Draw(e)              画主棋盘（Panel 自绘）
+   ├─ proimg_Paint(e)     ──► controller.DrawPreview(proimg,e) 画「下一个」预览（PictureBox 自绘）
+   └─ gamewiew_PreviewKeyDown ─► controller.Rotate() / Move() / Down()
 
-gameController (纯逻辑 + 自绘)
-   ├─ map : List<int[]>     棋盘数据，1=方块 2=墙 0=空
-   ├─ now / wait : block    当前块 / 下一个块
-   ├─ bw / bh : int         格子宽高，由 view 的宽高算出
-   └─ draw() / drawwait()   两个 GDI 绘制入口
+GameController (绘制层)
+   ├─ board : GameBoard       规则全部委托
+   ├─ cellWidth / cellHeight  由 view 宽高算出
+   └─ Draw() / DrawPreview()  两个 GDI 绘制入口
 
-block (数据)
-   └─ matblock[5,5] / curx / cury / colorblock
+GameBoard (纯逻辑层，不引用 WinForms)
+   ├─ cells : List<int[]>     Empty=0 / Settled=1 / Wall=2
+   ├─ Current / Next : Block  当前块 / 下一个块
+   └─ Move / MoveDown / Rotate / Merge / ClearLines / Advance / IsGameOver
+
+Block (数据)
+   └─ Matrix[5,5] / Column / Row / BlockColor
 ```
+
+`GameBoard` 不依赖 WinForms，规则可以直接 `new GameBoard(35)` 断言，不需要消息循环 —— 这是 `tests/Round1Regression.cs` 能直接测消行与边界的前提。
 
 关键状态约定：
 
@@ -134,6 +141,7 @@ block (数据)
 | `block.size = 5` 但只有 7 种形状 | 5×5 矩阵里实际只占 2×4 / 3×2 等一小块，其余是 0 |
 | 预览框位置看起来没居中 | `drawwait` 用 `box.Width/4 + j*bw` 定位，是硬编码的近似居中 |
 | 没有分数、没有等级、没有消行动画 | 原作者未实现 |
+| ~~逻辑与绘制耦合、无法单测~~ | **已修复**：拆出 `GameBoard`（纯逻辑）与 `GameController`（绘制） |
 | ~~每帧新建 GDI 对象 + 全棋盘重绘~~ | **已修复**：Pen/Brush 提为字段复用，重绘收窄到块移动的并集区域 |
 | ~~游戏结束后「开始」按钮变灰~~ | **已修复**：失败后按钮恢复可用且文案复位，一次点击即可开新局 |
 | `gamecontroller.cs` 里有 `using System.Windows.Forms` | 为了用 `Panel` / `PictureBox` / `PaintEventArgs` |

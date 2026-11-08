@@ -9,9 +9,9 @@ using System.Windows.Forms;
 
 namespace owlgame
 {
-    public partial class mainForm : Form
+    public partial class MainForm : Form
     {
-        private gameController controller;
+        private GameController controller;
 
         // Diagnostic channel. Reflection based styling and link handling are
         // best effort, but a silent failure would hide the flicker quietly
@@ -19,7 +19,7 @@ namespace owlgame
         // [Conditional("TRACE")], so the call is removed entirely unless TRACE
         // is defined. This field is observable in every build.
         internal static string diagnostics = null;
-        public mainForm()
+        public MainForm()
         {            
             InitializeComponent();
             buttonback.Enabled = false;
@@ -51,7 +51,7 @@ namespace owlgame
                 controller.Dispose();
                 controller = null;
             }
-            controller = new gameController(gamewiew);
+            controller = new GameController(gamewiew);
         }
 
         /// <summary>
@@ -197,17 +197,17 @@ namespace owlgame
             // Always repaint, so the back buffer always matches what is shown
             // on screen (no ghosting / flickering when the timer is stopped).
             if (controller != null)
-                controller.draw(e);
+                controller.Draw(e);
         }
 
         private void gametimer_Tick(object sender, EventArgs e)
         {
-            if (controller.down(0) == false)
+            if (controller.Down(1) == false)
             {
-                controller.putblock();
-                controller.clearLine();
-                controller.startnext();
-                if (controller.fall())
+                controller.Merge();
+                controller.ClearLines();
+                controller.Advance();
+                if (controller.IsGameOver())
                 {
                     gametimer.Enabled = false;
                     gaizi.Show();
@@ -245,16 +245,16 @@ namespace owlgame
             switch (e.KeyCode)
             {
                 case Keys.Up:
-                    controller.transpose();
+                    controller.Rotate();
                     break;
                 case Keys.Left:
-                    controller.move(false);
+                    controller.Move(false);
                     break;
                 case Keys.Right:
-                    controller.move(true);
+                    controller.Move(true);
                     break;
                 case Keys.Down:
-                    controller.down(2);
+                    controller.Down(2);
                     break;
             }           
         }
@@ -269,7 +269,7 @@ namespace owlgame
             using (SolidBrush bgBrush = new SolidBrush(proimg.BackColor))
                 e.Graphics.FillRectangle(bgBrush, proimg.ClientRectangle);
             if (controller != null)
-                controller.drawwait(proimg, e);
+                controller.DrawPreview(proimg, e);
             // Draw the frame of the pane on top of the preview so the box
             // is visible as a cell, exactly like the cells on the board.
             using (Pen framePen = new Pen(Color.Gray))
@@ -293,7 +293,7 @@ namespace owlgame
             }
         }
 
-        private void mainForm_Load(object sender, EventArgs e)
+        private void MainForm_Load(object sender, EventArgs e)
         {
             gaizi.Focus();
         }

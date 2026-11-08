@@ -4,7 +4,7 @@
 
 | 文件 | 作用 |
 | --- | --- |
-| `Round1Regression.cs` | 逻辑回归：形状随机性、形状↔颜色映射、外链 scheme 校验、Game Over 后按钮状态 |
+| `Round1Regression.cs` | 逻辑回归：形状随机性、形状↔颜色映射、消行、边界拒绝、外链 scheme 校验、Game Over 后按钮状态。**第 3 轮起大部分断言直接驱动 `GameBoard`，不再靠反射** |
 | `Round2Regression.cs` | 绘制回归：GDI 句柄稳定性、局部重绘是否真的局部、脏区是否覆盖旧+新位置、增量重绘与全绘的逐像素一致性 |
 | `PixelSmoke.cs` | 像素冒烟：墙体像素守恒（闪烁检测）、当前块/预览框绘制、重玩路径 |
 

@@ -3,11 +3,13 @@ using System.Drawing;
 using System.Reflection;
 using System.Windows.Forms;
 
-// End-to-end smoke probe: the anti flicker fix must still hold and the board
-// must keep rendering after the colour / shape changes of round 1.
+// End-to-end smoke probe, adapted to the round-3 class split.
+// Walls are still static dark grey and the board is still drawn from scratch on
+// every repaint, so "number of grey pixels" stays a cheap picture-integrity
+// signal: it drops the moment the board is erased mid-frame.
 class ProbeSmoke
 {
-    static owlgame.mainForm form;
+    static owlgame.MainForm form;
     static System.Text.StringBuilder sb = new System.Text.StringBuilder();
     static int failures = 0;
 
@@ -25,7 +27,7 @@ class ProbeSmoke
         return fi == null ? null : fi.GetValue(target);
     }
 
-    struct Stats { public int gray, navy, light, other; }
+    struct Stats { public int gray, navy, other; }
 
     static Stats Sample(Control c)
     {
@@ -39,7 +41,6 @@ class ProbeSmoke
                     Color p = bmp.GetPixel(x, y);
                     if (p.R == 128 && p.G == 128 && p.B == 128) s.gray++;
                     else if (p.R == 0 && p.G == 0 && p.B == 64) s.navy++;
-                    else if (p.R > 200 && p.G > 200 && p.B > 200) s.light++;
                     else s.other++;
                 }
         }
@@ -50,12 +51,13 @@ class ProbeSmoke
     static int Main()
     {
         Application.EnableVisualStyles();
-        form = new owlgame.mainForm();
+        form = new owlgame.MainForm();
         form.Show();
         Application.DoEvents();
 
         Panel view = (Panel)Get(form, "gamewiew");
         Button bs = (Button)Get(form, "buttonstart");
+        Button bb = (Button)Get(form, "buttonback");
 
         bs.PerformClick();
         Application.DoEvents();
@@ -63,19 +65,14 @@ class ProbeSmoke
         Application.DoEvents();
 
         Stats start = Sample(view);
-        Log("after start  : gray=" + start.gray + " colored=" + start.light
-            + " navy=" + start.navy + " other=" + start.other);
-        // With the round-1 change a shape always gets the same colour out of
-        // seven, so the block is not necessarily a light colour: count every
-        // non-background, non-wall pixel as "coloured".
-        int startColored = start.light + start.other;
+        int startColored = start.other;
+        Log("after start  : gray=" + start.gray + " colored=" + startColored
+            + " navy=" + start.navy);
         Check("walls painted", start.gray > 10000, "gray=" + start.gray);
         Check("current block painted", startColored > 0, "colored=" + startColored);
 
-        object gc = Get(form, "controller");
-        MethodInfo move = gc.GetType().GetMethod("move");
-        MethodInfo transpose = gc.GetType().GetMethod("transpose");
-        MethodInfo down = gc.GetType().GetMethod("down");
+        owlgame.GameController controller =
+            (owlgame.GameController)Get(form, "controller");
         Random rnd = new Random(12345);
 
         int minGray = int.MaxValue, maxGray = 0;
@@ -84,9 +81,9 @@ class ProbeSmoke
         for (int k = 0; k < 120; k++)
         {
             int op = rnd.Next(3);
-            if (op == 0) move.Invoke(gc, new object[] { rnd.Next(2) == 0 });
-            else if (op == 1) transpose.Invoke(gc, null);
-            else down.Invoke(gc, new object[] { 1 });
+            if (op == 0) controller.Move(rnd.Next(2) == 0);
+            else if (op == 1) controller.Rotate();
+            else controller.Down(1);
             view.Invalidate();
             Application.DoEvents();
 
@@ -94,7 +91,7 @@ class ProbeSmoke
             frames++;
             if (s.gray < minGray) minGray = s.gray;
             if (s.gray > maxGray) maxGray = s.gray;
-            int colored = s.light + s.other;
+            int colored = s.other;
             if (colored < minColored) minColored = colored;
             if (colored > maxColored) maxColored = colored;
         }
@@ -106,14 +103,13 @@ class ProbeSmoke
               minGray == maxGray || (maxGray - minGray) < 200,
               "min=" + minGray + " max=" + maxGray);
 
-        // Restart path must still work after the game-over change of fix 16.
-        Button bb = (Button)Get(form, "buttonback");
+        // Restart path must still work after the game-over change.
         bb.PerformClick();
         Application.DoEvents();
         view.Invalidate();
         Application.DoEvents();
         Stats restart = Sample(view);
-        int restartColored = restart.light + restart.other;
+        int restartColored = restart.other;
         Log("after restart: gray=" + restart.gray + " colored=" + restartColored
             + " navy=" + restart.navy);
         Check("restart keeps walls", restart.gray > 10000, "gray=" + restart.gray);
@@ -134,7 +130,8 @@ class ProbeSmoke
         form.Close();
         Log("");
         Log(failures == 0 ? "RESULT: ALL PASS" : "RESULT: " + failures + " FAILURE(S)");
-        System.IO.File.WriteAllText("out_smoke.txt", sb.ToString(), new System.Text.UTF8Encoding(false));
+        System.IO.File.WriteAllText("out_smoke.txt", sb.ToString(),
+            new System.Text.UTF8Encoding(false));
         return failures;
     }
 }
