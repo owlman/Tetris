@@ -265,9 +265,20 @@ namespace owlgame
         }
 
         /// <summary>
-        /// Remove the given lines and push everything above them down. The lines
-        /// are removed bottom up so the indices stay valid while the list
-        /// shrinks.
+        /// Remove the given lines and push everything above them down.
+        ///
+        /// The lines must be processed in ASCENDING order using their original
+        /// indices. Removing a line and pushing a fresh one in at the top is a
+        /// pair of operations whose net effect is: every line above the removed
+        /// one moves down by one, every line below it keeps its index. So the
+        /// next larger index is still valid, while a smaller one would already
+        /// have shifted.
+        ///
+        /// Processing them in descending order (the obvious-looking choice)
+        /// silently deletes empty lines: the first pass shifts all the smaller
+        /// indices up by one, and the second pass then hits the wrong row. That
+        /// bug shipped with the round-2 refactor and was only caught when the
+        /// unit tests started asserting that no full line is left behind.
         /// </summary>
         public int ClearLines(IList<int> linesToClear)
         {
@@ -276,18 +287,20 @@ namespace owlgame
 
             List<int> sorted = new List<int>(linesToClear);
             sorted.Sort();
-            for (int k = sorted.Count - 1; k >= 0; --k)
+
+            int cleared = 0;
+            foreach (int line in sorted)
             {
-                int line = sorted[k];
                 if (line < 0 || line >= lineCount - FloorThickness)
                     continue;
 
                 cells.RemoveAt(line);
                 cells.Insert(0, NewWallLine());
+                cleared++;
             }
 
-            AwardScore(sorted.Count);
-            return sorted.Count;
+            AwardScore(cleared);
+            return cleared;
         }
 
         /// <summary>
