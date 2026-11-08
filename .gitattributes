@@ -8,6 +8,8 @@
 #   - 所有 .cs 源码：UTF-8 with BOM + CRLF 行尾
 #     （带 BOM 是为了 csc.exe / 旧版 MSBuild 能无歧义地按 UTF-8 读取）
 #   - .resx：UTF-8（内容为纯 ASCII）+ CRLF
+#   - *.md：UTF-8 无 BOM + CRLF（与 .cs 一致；注意 write 工具写出的是 LF，
+#     用它整篇重写 .md 会把全文件行尾翻成 LF，制造几百行纯行尾 diff）
 #   - 仓库中保存的文件与工作区字节级一致
 #
 # 因此禁用 git 的行尾自动转换，避免在 Windows / Linux 之间同步时

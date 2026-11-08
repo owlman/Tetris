@@ -141,7 +141,8 @@ cp owlgame.pdb "$P/owlgame/bin/Debug/owlgame.pdb"
 | --- | --- | --- | --- |
 | `owlgame/*.cs`（全部，含 `Properties/`） | UTF-8 | **有** | CRLF |
 | `owlgame/*.resx` | UTF-8（内容纯 ASCII） | 无 | CRLF |
-| `README` | UTF-8 | 有 | LF |
+| `*.md`（README / AGENTS / todolist / tests） | UTF-8 | 无 | **CRLF** |
+| `.gitattributes` / `.gitignore` | UTF-8 | 无 | LF（git 自身的习惯） |
 
 `.gitattributes` 里写了 `* -text`，禁用 git 的行尾自动转换 —— 仓库中保存的字节与工作区**完全一致**，避免在 Windows / Linux 之间同步时出现整文件行尾 diff。
 
@@ -153,6 +154,7 @@ cp owlgame.pdb "$P/owlgame/bin/Debug/owlgame.pdb"
 2. Python 脚本读写时用 `encoding='utf-8-sig'`（读）/ `encoding='utf-8-sig'`（写）+ `newline='\r\n'`，并用默认 `newline=None` 归一化行尾（用 `newline=''` 保留 `\r\n` 会导致用 `\n` 构造的匹配串**永远匹配不上**）。
 3. **新增注释一律写英文**，可以顺带规避整个编码问题。
 4. 改写前确认文件在版本控制里（`git status` + 文件大小自检），出事可 `git checkout HEAD -- <path>` 恢复。
+5. **`.md` 文档也要按 CRLF 写**（本仓 `.md` 已统一 CRLF）。`write` 工具写出的文件是 **LF**，用它整篇重写 `.md` 会把全文件行尾从 CRLF 翻成 LF，制造几百行的纯行尾 diff —— 本仓历史上 `948581c` 就这么产生过 580 行噪音。**改 `.md` 请用 Python 脚本按 `newline='\r\n'` 写，不要用 `write` 整篇覆盖。**
 
 ```python
 # .cs 文件的正确改法（UTF-8 BOM + CRLF）
