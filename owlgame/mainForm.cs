@@ -28,6 +28,30 @@ namespace owlgame
             EnableDoubleBuffer(this);
             ApplyFlickerFix(gamewiew);
             ApplyFlickerFix(proimg);
+
+            // The controller caches GDI objects now, so it has to be disposed.
+            this.FormClosing += delegate
+            {
+                if (controller != null)
+                {
+                    controller.Dispose();
+                    controller = null;
+                }
+            };
+        }
+
+        /// <summary>
+        /// Replace the controller with a fresh one, releasing the cached GDI
+        /// objects of the previous game (they used to leak on every restart).
+        /// </summary>
+        private void ResetController()
+        {
+            if (controller != null)
+            {
+                controller.Dispose();
+                controller = null;
+            }
+            controller = new gameController(gamewiew);
         }
 
         /// <summary>
@@ -146,7 +170,7 @@ namespace owlgame
             if (buttonstart.Text == "开始(&E)")
             {
                 gaizi.Hide();
-                controller = new gameController(gamewiew);
+                ResetController();
                 buttonback.Enabled = true; 
                 gametimer.Enabled = true;
                 gamewiew.Invalidate();
@@ -207,7 +231,7 @@ namespace owlgame
         private void buttonback_Click(object sender, EventArgs e)
         {
             gaizi.Hide();
-            controller = new gameController(gamewiew);
+            ResetController();
             buttonstart.Enabled = true;
             gametimer.Enabled = true;
             gamewiew.Invalidate();
