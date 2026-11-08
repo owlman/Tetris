@@ -57,7 +57,7 @@ MSYS_NO_PATHCONV=1 /c/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe \
   /nologo /target:winexe /main:owlgame.Program \
   /out:owlgame.exe /debug /define:TRACE,DEBUG \
   /win32icon:"Core IP theme Icon 01.ico" \
-  /resource:mainForm.resx,owlgame.mainForm.resources \
+  /resource:MainForm.resx,owlgame.MainForm.resources \
   /resource:gamehelp.resx,owlgame.gamehelp.resources \
   /resource:Properties/Resources.resx,owlgame.Properties.Resources.resources \
   *.cs

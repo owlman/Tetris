@@ -62,7 +62,7 @@ Tetris/
 │   ├── GameController.cs    # **绘制**：像素几何 + GDI 资源 + 脏矩形重绘，规则全部委托给 GameBoard
 │   ├── Block.cs             # 方块定义：7 种形状的 5×5 矩阵 + 形状固定配色
 │   ├── gamehelp.cs(+Designer) # 「说明」帮助窗体
-│   ├── mainForm.resx / gamehelp.resx
+│   ├── MainForm.resx / gamehelp.resx
 │   ├── Properties/          # AssemblyInfo / Resources / Settings
 │   ├── bin/Debug/           # **已被 git 跟踪**，含 owlgame.exe / .pdb / .vshost.exe
 │   └── obj/                 # **部分被 git 跟踪**（旧 csproj 的产物）
@@ -111,7 +111,7 @@ MSYS_NO_PATHCONV=1 /c/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe \
   /nologo /target:winexe /main:owlgame.Program \
   /out:owlgame.exe /debug /define:TRACE,DEBUG \
   /win32icon:"Core IP theme Icon 01.ico" \
-  /resource:mainForm.resx,owlgame.mainForm.resources \
+  /resource:MainForm.resx,owlgame.MainForm.resources \
   /resource:gamehelp.resx,owlgame.gamehelp.resources \
   /resource:Properties/Resources.resx,owlgame.Properties.Resources.resources \
   *.cs

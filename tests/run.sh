@@ -39,7 +39,7 @@ MSYS_NO_PATHCONV=1 "$CSC" \
     /nologo /target:winexe /main:owlgame.Program \
     /out:owlgame.exe /debug /define:TRACE,DEBUG \
     /win32icon:"$ICON" \
-    /resource:mainForm.resx,owlgame.MainForm.resources \
+    /resource:MainForm.resx,owlgame.MainForm.resources \
     /resource:gamehelp.resx,owlgame.gamehelp.resources \
     /resource:Properties/Resources.resx,owlgame.Properties.Resources.resources \
     *.cs
