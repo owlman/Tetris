@@ -29,9 +29,16 @@
 
 | 层 | 路径 | 仓库 | remote | 分支 |
 | --- | --- | --- | --- | --- |
-| 内层（本项目） | `.../C#/Tetris/` | 独立 git 仓 | `origin` → `https://gitee.com/owlman/owlgame-Tetris` | `master` |
+| 内层（本项目） | `.../C#/Tetris/` | 独立 git 仓 | `origin` → gitee `owlman/owlgame-Tetris`（HTTPS）<br>`github` → `owlman/Tetris`（SSH） | `master` |
 | 外层（笔记库） | `0_LabNotes/` | 独立 git 仓 | **无 remote** | `master` |
 | 更外层 | `D:\Working\writing\` | **不是 git 仓** | — | — |
+
+> 本项目有**两个远端**，每次同步必须全推：
+> ```bash
+> git push origin master && git push github master
+> ```
+> `github` 用 SSH（`git@github.com:owlman/Tetris.git`），`origin` 用 HTTPS（gitee）。
+> GitHub 仓库为 Public，许可证 MIT。
 
 因此：
 
@@ -337,7 +344,11 @@ after restart: gray=17200 colored=400 navy=67760
 
 ## Git 约定
 
-- 内层仓库 `master` 分支，remote `origin` → gitee `owlman/owlgame-Tetris`（已验证可连通）。
+- 内层仓库 `master` 分支，**两个远端都要推**：`origin` → gitee `owlman/owlgame-Tetris`，`github` → `owlman/Tetris`（Public，MIT）。
+  ```bash
+  git push origin master && git push github master
+  ```
+  只推一个会让两个公开仓的代码分叉，给 `clone` 下来的人不同的版本。
 - 提交前跑 `git status -sb`，注意 `owlgame/bin/Debug/owlgame.exe`、`owlgame.pdb` 是被跟踪的二进制，**源码改动要一并重新编译并提交**（否则仓库里的 exe 与源码不一致，下次别人运行还是旧行为）。
 - commit message 遵循 Conventional Commits；仓库历史是英文短句风格（`first commit` / `add README` / `this is a game` / `vs 2008 file...`），新提交建议用 `fix:` / `chore:` / `docs:` 等标准前缀。
 - **不要**主动推送外层 `0_LabNotes` 仓库（它没有 remote，且 `游戏开发/` 目录当前是未跟踪状态，是否纳入由用户决定）。
