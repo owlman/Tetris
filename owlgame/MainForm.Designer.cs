@@ -240,7 +240,7 @@
             this.myweb.TabIndex = 5;
             this.myweb.TabStop = true;
             this.myweb.Tag = "www.lingjie.net";
-            this.myweb.Text = "owlnan制作";
+            this.myweb.Text = "owlman 制作";
             this.myweb.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.myweb_LinkClicked);
             //
             // scoreCard

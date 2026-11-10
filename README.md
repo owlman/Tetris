@@ -1,8 +1,24 @@
 # 俄罗斯方块（C# 实现）
 
-> 作者：owlnan（浙江大学，2006 年）　技术栈：C# + Windows Forms（纯 GDI 运行时绘制，不使用位图资源）
+[![CI](https://github.com/owlman/Tetris/actions/workflows/ci.yml/badge.svg)](https://github.com/owlman/Tetris/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.0-512bd4.svg)](https://dotnet.microsoft.com/download/dotnet-framework)
+
+> 作者：owlman（浙江大学，2006 年）　技术栈：C# + Windows Forms（纯 GDI 运行时绘制，不使用位图资源）
 
 一个用 C# + WinForms 实现的俄罗斯方块小游戏。棋盘、方块、预览框**全部由 GDI 在运行时绘制**，没有预置的位图素材；2026-11 定位并修复了按键时棋盘闪烁的老毛病。
+
+---
+
+## 界面
+
+三张图都由 `tests/capture.sh` 驱动**真实程序**自动跑出来：反射调用 `MainForm.buttonstart.PerformClick()` 开局，再按游戏时钟逐帧推进，用 `DrawToBitmap` 截屏。
+
+| 开局 | 游戏中（已堆起阶梯） | 首次得分 |
+| --- | --- | --- |
+| ![开局界面](img/welcome.png) | ![游戏中](img/playing.png) | ![首次得分](img/scoring.png) |
+
+截图探针带一个简单的落点评估器（枚举 4 个旋转 × 全部合法列，用 `GameBoard.CanPlace` 模拟落点，按「聚合高度 / 消行数 / 空洞 / 表面崎岖度」打分选最优），所以中间那张阶梯是程序自己堆出来的、右边那张 100 分是它自己消掉一行得来的，不是摆拍。
 
 ---
 
@@ -104,6 +120,14 @@ Tetris/
 │   ├── gamehelp.cs(+Designer)  # 「说明」帮助窗体
 │   ├── *.resx / Properties/    # 资源与程序集信息
 │   └── bin/Debug/              # 已跟踪：owlgame.exe / owlgame.pdb
+├── tests/                      # 测试与探针
+│   ├── framework/              # 自建的极简测试框架（反射发现 [Test]、UI 分类、exit code = 失败数）
+│   ├── TetrisTests/            # 单元测试用例（棋盘 / 计分 / 方块 / UI）
+│   ├── run.sh                  # 五步流水线：备目录 → 编译 → 单测 → 像素探针 → 汇总
+│   ├── capture.sh              # 生成 README 截图（驱动真实程序自动对局）
+│   └── tools/                  # 像素探针 / 回归探针 / 截图探针
+├── .github/workflows/ci.yml    # GitHub Actions（windows-latest，跑 run.sh --skip-ui）
+├── img/                        # README 截图（由 tests/capture.sh 生成）
 ├── AGENTS.md                   # 面向 AI Agent 的项目工作指引（构建 / 编码 / 验证）
 ├── README.md                   # 本文件
 └── owlgame.sln                 # 解决方案（已升级到 Format 12.00）

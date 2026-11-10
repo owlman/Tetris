@@ -10,6 +10,7 @@
 > **P4 收尾完成**：第 22 项（6 处边界）与第 23 项（public 成员覆盖率对照）已完成，用例数 57 → **71**，并顺手删掉一个无调用方的死方法。
 > **P5 已完成**：24~32 UI 设计现代化已按 **D7-B-lite**（保持棋盘几何、现代化外围）落地。
 > **第 33 项**：全面测试发现并修掉两处状态机缺陷（动画期间的停止/重玩/结束/帮助），用例 72 → 76，均做了回退验证。
+> **第 9 轮（对外门面）**：34 —— README 补 CI/协议/运行环境三个徽章 + 「界面」章节三张实拍截图 + 目录结构补齐 `tests/`、`.github/`、`img/`；顺带修掉 `owlnan` 拼写（README 与界面署名各一处）。新增 `tests/build-release.sh` 负责回写被跟踪的 exe。
 > 配套文档：[`AGENTS.md`](AGENTS.md)（构建/编码/验证规范）　[`README.md`](README.md)（项目说明）
 
 **图例**：`[ ]` 待办　`[x]` 已完成　`[!]` 需要用户拍板　`💡` 改进建议（非缺陷）
@@ -606,6 +607,36 @@ int expected = wallCells * controller.CellWidth * controller.CellHeight;
 
 ---
 
+### [x] 34. 对外门面：README 徽章 / 界面截图 / 署名校对（第 9 轮）
+
+GitHub 主页复盘时发现的落差：这个仓有 71 个用例 + CI 全绿 + 像素级回归，但外部看到的只有「0 star、无 description、README 里 0 张图、目录结构连 `tests/` 都没列」。
+
+| 项 | 改动 |
+| --- | --- |
+| 作者名 | README 第 3 行 `owlnan` → `owlman`（界面 `MainForm.Designer.cs:243`「owlnan制作」→「owlman 制作」） |
+| 徽章 | CI（链到 `actions/workflows/ci.yml`）+ License MIT + .NET Framework 4.0 |
+| 截图 | 新增 `img/welcome.png` / `playing.png` / `scoring.png`（各 512×412）与「界面」章节 |
+| 目录结构 | 补 `tests/`（framework / TetrisTests / run.sh / capture.sh / tools）、`.github/workflows/ci.yml`、`img/` |
+| 新脚本 | `tests/capture.sh`（生成截图）、`tests/build-release.sh`（编译并回写 `bin/Debug/owlgame.exe`） |
+
+**截图由真实程序自跑生成**：反射调用 `buttonstart.PerformClick()` 开局，每帧调 `gametimer_Tick` + `DoEvents`，`DrawToBitmap` 截屏，不 mock 任何 UI。为拍到「有堆叠、有分数」的画面，探针内置一个放置评估器（枚举 4 旋转 × 合法列，用产品自己的 `GameBoard.CanPlace` 模拟落点，按聚合高度 / 消行 / 空洞 / 崎岖度打分）。
+
+三代方案对比（前两代均失败）：
+
+| 代 | 策略 | 结果 |
+| --- | --- | --- |
+| 1 | 每 tick 朝最矮列移动 | 300 局 0 次消行（横跳被自己堆的方块挡住） |
+| 2 | 每块只决策一次，移到最矮列 | 80 局 0 次消行（形成差 1 格的阶梯，永不满行） |
+| 3 | 放置评估器（模拟落点后打分） | 4~6 局内即可拍到消行 |
+
+**验证**：`bash tests/run.sh` 全通过；`grep -rn owlnan` 0 命中；重编译后 exe 212992 字节；截图日志 `games played: 6, midgame=True, scoring=True`。
+
+**踩坑**：`Block.Column` 是 public 字段不是属性（用 `GetField` 不是 `GetProperty`）；`IsHighlighting` 抓不到高亮帧（`gametimer_Tick` 内部已 `DoEvents`，等检查时高亮已闪完）；Python 改 CRLF 文件时 anchor 用 `\n` 会失配，需先归一化。
+
+- **预估**：1.5 小时（实际约 1 小时，其中 2/3 花在让探针学会自己消行）
+
+---
+
 ## [!] 需要用户拍板的决策点
 
 | # | 决策 | 选项 | 影响 |
@@ -617,7 +648,7 @@ int expected = wallCells * controller.CellWidth * controller.CellHeight;
 | D5 | 是否补 LICENSE、用什么协议 | **已采用 MIT**（`Copyright (c) 2006-2026 owlman`） | 允许商用与再分发，与 `CS_StudyNotes` 一致 |
 | D6 | 测试框架选型（第 17 项） | **已采用 D（自制框架）**：约 500 行，支持 `[Test]`/`[TestCase]`/`[Category]`/`--filter` | 零依赖、完全适配 C# 5 与 .NET 4.0；xUnit 要求 4.5.2+ 直接排除 |
 | D7 | UI 现代化到什么程度（第 24 项） | **已采用 B-lite**：侧栏卡片化 + 字体/按钮/配色全部更新，但 `gamewiew` 固定 220×388 不动 | 保住了 `lineCount=35` 与格子几何；像素基线改用「从产品常量推导」，不再硬编码 |
-| D8 | 是否保留 2006 年的年代特征 | **已采用 B**：隶书/楷体/宋体全部换成微软雅黑，灰色描边方块换成带间隙的圆润色块；只保留「owlnan制作」署名 | 2006 原貌改由 git 历史保留（`4f2e384` 之前的提交）；帮助窗体 `gamehelp` 的楷体**未动** |
+| D8 | 是否保留 2006 年的年代特征 | **已采用 B**：隶书/楷体/宋体全部换成微软雅黑，灰色描边方块换成带间隙的圆润色块；署名作为唯一的年代标记保留 | 2006 原貌改由 git 历史保留（`4f2e384` 之前的提交）；帮助窗体 `gamehelp` 的楷体**未动**。**第 9 轮修订**：署名字样「owlnan制作」已改为「owlman 制作」—— 那是当年把 `owlman` 拼错的笔误，不是年代特征 |
 
 ---
 
@@ -632,4 +663,5 @@ int expected = wallCells * controller.CellWidth * controller.CellHeight;
 第 6 轮（单元测试）         17（选型）→ 18（结构）→ 20（补用例）→ 19（迁移）→ 21（CI）
 第 7 轮（测试收尾）         22（剩余边界）✅ → 23（覆盖率对照）✅   用例 57 → 71
 第 8 轮（UI 现代化）       24~31 全部完成（D7-B-lite）✅   用例 71 全过，基线改为常量推导
+第 9 轮（对外门面）       34（README 徽章 + 截图 + 署名校对）✅   新增 capture.sh / build-release.sh
 ```
