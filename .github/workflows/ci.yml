@@ -5,6 +5,9 @@ name: CI
 # 只跑逻辑测试：GitHub 的 windows runner 是 session 0（没有交互式桌面），
 # 需要 Form.Show() 与消息循环的 UI 用例在这里不可靠，所以用 --skip-ui 跳过。
 # 本地跑完整套：bash tests/run.sh
+#
+# 覆盖范围：62 / 76 个用例 + 2 个像素探针。被跳过的 14 条 UI 用例逐条清单
+# 见 tests/README.md —— CI 绿灯不代表任何需要真人点按钮的行为已验证。
 
 on:
   push:
@@ -34,7 +37,7 @@ jobs:
           "$CSC" 2>&1 | head -2 || true
           bash --version | head -1
 
-      - name: Build and run checks
+      - name: Build and run checks (logic only; UI cases skipped)
         shell: bash
         run: |
           # run.sh 需要一个纯 ASCII 的构建目录（csc 不支持中文路径），

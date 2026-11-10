@@ -57,7 +57,7 @@ Results: 56 passed, 1 failed, 0 skipped, 57 total (1889 ms)
 ## 实测基线
 
 ```
-单元测试（--skip-ui）：64 passed, 0 failed, 12 skipped, 76 total
+单元测试（--skip-ui）：62 passed, 0 failed, 14 skipped, 76 total
 单元测试（完整）    ：76 passed, 0 failed, 0 skipped, 76 total
 ```
 
@@ -98,11 +98,44 @@ for (int k = sorted.Count - 1; k >= 0; --k)   // 错
 
 升序处理才对。这个 bug 在第二轮重构时引入，之前所有探针都没抓到，因为它们只断言 `ClearLines()` 的**返回值**等于预期数量（返回值就是入参长度，无论删对没删对都是对的）。新用例补了「消完之后不应再有满行」的断言，立刻暴露。
 
-## GitHub Actions
+## 两个入口：CI 绿灯 ≠ 界面已验证
 
-`.github/workflows/ci.yml`：`windows-latest` + `--skip-ui`。
+复现时分清两条命令，它们跑的不是同一套断言：
 
-CI 只跑逻辑用例 —— runner 是 session 0，没有交互式桌面，`Form.Show()` 与消息循环相关断言不可靠。
+| 入口 | 命令 | 覆盖范围 |
+| --- | --- | --- |
+| **CI**（`.github/workflows/ci.yml`） | `bash tests/run.sh --skip-ui` | 62 个逻辑用例 + 2 个像素探针 |
+| **本地完整** | `bash tests/run.sh` | 76 个用例（含 14 个 UI 用例）+ 2 个像素探针 |
+| **截图**（不在任何自动化里） | `bash tests/capture.sh` | 只出图，无断言 |
+
+CI 用 `--skip-ui` 的原因写在 `ci.yml` 的注释里：GitHub 的 `windows-latest` runner 是 **session 0**，没有交互式桌面，涉及 `Form.Show()` 与消息循环的断言不可靠。`--list` 不受影响，两种模式下都列出全部 76 条，别用它判断覆盖范围。
+
+### CI 绿了，但下面这 14 条一次都没跑
+
+整类跳过靠的是 `UiTests.cs:27` 的 `[Category("UI")]`（类级标注，不是逐条标注），`TestRunner.NeedsUi` 在类和方法两级查这个特性：
+
+| 用例 | 断言的是什么界面行为 |
+| --- | --- |
+| `NoSetupFailureIsRecorded` | 构造失败时诊断通道有记录，不静默吞异常 |
+| `ReadoutStartsWithZeroes` | 开局前计分读数归零 |
+| `StartingAGameEnablesTheClock` | 「开始」真的把定时器跑起来 |
+| `RestartingDoesNotLeakGdiHandles` | 反复重玩时 GDI 句柄不增长 |
+| `FullLineEntersTheFlashState` | 满行先进入高亮闪烁，不是立即消失 |
+| `FlashTickClearsAndScores` | 闪烁结束的那一 tick 才消行并加分 |
+| `ControllerExposesTheCellGeometry` | 控制器对外暴露的格宽/格高与棋盘一致 |
+| `ControllerDelegatesTheBoardRules` | 控制器确实把规则委托给 `GameBoard`，没有自己算 |
+| `PreviewPaneIsPaintedBeforeTheGameStarts` | 预览面板在开局前就已绘制 |
+| `RestartDuringTheClearAnimationDropsIt` | 消行动画期间重玩会丢弃动画 |
+| `StopDuringTheClearAnimationKeepsTheClockStopped` | 动画期间按停止，时钟不会自己重启 |
+| `GameOverDuringTheClearAnimationStopsTheClock` | 动画期间终局，时钟停下 |
+| `HelpWindowMatchesTheModernStyle` | 说明窗口沿用新版配色 |
+| `BoardKeepsItsWallsWhilePlaying` | 运行中墙体像素守恒（防擦除闪烁） |
+
+像素探针（`PixelSmoke` / `Round2Regression`）**两条入口都跑**：它们用 `DrawToBitmap` + 内存画布，不依赖交互桌面，所以 CI 里也能给出 `wall=20812` 这类守恒数字。
+
+> 结论：CI 只能证明「逻辑正确 + 像素不退化」，**证明不了任何需要真人点按钮的行为**。改完 `MainForm` 的事件线（开始/停止/重玩/动画中断）之后，必须在本地跑一次完整套，CI 绿不能当作通过。
+
+
 
 ## 编写约定
 
