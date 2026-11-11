@@ -15,7 +15,8 @@ namespace owlgame
     /// Resolution order (first match wins):
     ///   1. --lang=zh / --lang=en on the command line
     ///   2. the OWLGAME_LANG environment variable
-    ///   3. the OS UI culture (Chinese culture -> Chinese, anything else -> English)
+    ///   3. the compile-time switch (LANG_ZH / LANG_EN), set by build-release.sh
+    ///   4. the OS UI culture (Chinese culture -> Chinese, anything else -> English)
     /// </summary>
     public static class Strings
     {
@@ -27,9 +28,35 @@ namespace owlgame
 
         private static Language current = Language.Chinese;
 
+        private static readonly Language? buildLanguage = ResolveBuildLanguage();
+
         public static Language Current
         {
             get { return current; }
+        }
+
+        /// <summary>
+        /// The language pinned at compile time, or null when this binary follows
+        /// the OS culture. Pinned with <c>/define:LANG_ZH</c> or
+        /// <c>/define:LANG_EN</c>; see <c>tests/build-release.sh</c>.
+        /// </summary>
+        public static Language? BuildLanguage
+        {
+            get { return buildLanguage; }
+        }
+
+        private static Language? ResolveBuildLanguage()
+        {
+#if LANG_ZH && LANG_EN
+#error LANG_ZH and LANG_EN are mutually exclusive; pick one.
+#endif
+#if LANG_ZH
+            return Language.Chinese;
+#elif LANG_EN
+            return Language.English;
+#else
+            return null;
+#endif
         }
 
         /// <summary>The language the OS would suggest.</summary>
@@ -71,7 +98,7 @@ namespace owlgame
                 return;
             }
 
-            current = SystemDefault;
+            current = buildLanguage ?? SystemDefault;
         }
 
         public static void SetLanguage(Language language)

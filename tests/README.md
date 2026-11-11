@@ -31,6 +31,7 @@ tests/
 ├── probes/                     # 像素探针（输出基线数字，不是 PASS/FAIL）
 │   ├── Round2Regression.cs     # 增量重绘 vs 全绘逐像素比对、GDI 句柄
 │   └── PixelSmoke.cs           # 墙体像素守恒、预览框、重玩路径
+├── build-release.sh          # 编译并回写 bin/Debug 的三份 exe（默认 / LANG_ZH / LANG_EN）
 └── run.sh
 ```
 

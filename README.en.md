@@ -74,13 +74,15 @@ Window buttons: Start / Stop, Restart, Help, Exit (labels are in Chinese: `开�
 
 ### Run the pre-built binary
 
-A compiled executable is tracked in the repository:
+Three compiled executables are tracked in the repository; double-click any of them (Windows + .NET Framework 4.0 runtime required):
 
-```Bash
-owlgame/bin/Debug/owlgame.exe
-```
+| File | UI language |
+| --- | --- |
+| `owlgame/bin/Debug/owlgame.exe` | Follows the OS (Chinese on a Chinese system, English otherwise) |
+| `owlgame/bin/Debug/owlgame-zh.exe` | Always Chinese |
+| `owlgame/bin/Debug/owlgame-en.exe` | Always English |
 
-Double-click it (Windows + .NET Framework 4.0 runtime required).
+All three are exactly the same size (217,088 bytes); they differ only in one compile-time constant. See "Building the three language variants".
 
 > ⚠️ This exe is a **version-controlled** artifact. After changing the source you must rebuild and overwrite it, otherwise the shipped binary drifts away from the source (see "Building from source").
 
@@ -123,6 +125,55 @@ Key points:
 - `/main:owlgame.Program` is mandatory: any leftover probe file with its own `Main` otherwise triggers `CS0017: Program has more than one entry point`.
 - All three `.resx` files must be embedded under their **assembly-qualified names**, otherwise you get `MissingManifestResourceException` at runtime.
 - `csc` v4.0.30319 is a **C# 5** compiler: no local functions, no `?.`, no `$"..."` interpolation.
+
+### Building the three language variants
+
+The command above produces only the "follow the OS" build. To produce all three variants and write the tracked artifacts back:
+
+```bash
+bash tests/build-release.sh
+```
+
+The script compiles three times inside `/c/t_rel` (a pure-ASCII path); the only difference is one extra `/define:` constant:
+
+| Artifact | Extra compile-time constant | UI language |
+| --- | --- | --- |
+| `owlgame.exe` | — | Follows the OS UI culture: `zh` → Chinese, anything else → English |
+| `owlgame-zh.exe` | `LANG_ZH` | Always Chinese, regardless of the OS |
+| `owlgame-en.exe` | `LANG_EN` | Always English, regardless of the OS |
+| `owlgame.pdb` | — | Debug symbols for `owlgame.exe` only (the variants ship without a pdb) |
+
+Defining both `LANG_ZH` and `LANG_EN` is a compile-time error (`LANG_ZH and LANG_EN are mutually exclusive; pick one.`), so a typo can never silently pick one of them.
+
+**Runtime precedence** (`Strings.Configure`, first match wins):
+
+```
+--lang=zh|en   >   OWLGAME_LANG environment variable   >   compile-time LANG_ZH/LANG_EN   >   OS UI culture
+```
+
+A language-pinned binary can therefore still be overridden at launch:
+
+```bash
+owlgame-en.exe --lang=zh                  # run the English build with Chinese text
+set OWLGAME_LANG=en && owlgame-zh.exe     # cmd; in PowerShell: $env:OWLGAME_LANG="en"
+```
+
+### Compiler options, one by one
+
+| Option | Why it has to be written this way |
+| --- | --- |
+| `-nologo <source files>` | `csc` otherwise prints a banner to stdout; `-nologo` keeps script output clean |
+| `-target:winexe` | Produces a GUI program: double-clicking opens no console window (`exe` would open one; `library` is simply the wrong target) |
+| `-main:owlgame.Program` | Pins the entry point. Any leftover probe file with its own `Main` (`harness*.cs` / `check*.cs`) otherwise triggers `CS0017: Program has more than one entry point` |
+| `-out:owlgame-en.exe` | Output name. Under Git Bash it must be paired with `MSYS_NO_PATHCONV=1`, or `/out:` gets mangled as a path |
+| `-debug` | Emits a `.pdb` so stack traces carry line numbers. **It does not imply `-define:DEBUG`**: the two are independent switches |
+| `-define:TRACE,DEBUG` | Defines conditional-compilation symbols. **`TRACE` is not optional**: `Trace.WriteLine` carries `[Conditional("TRACE")]`, and without the symbol the compiler **silently removes the whole call**, turning diagnostics into a no-op (a bug this project actually hit) |
+| `-define:...,LANG_ZH` | Project-specific symbol that pins the UI language into the binary (see `ResolveBuildLanguage` in `owlgame/Strings.cs`) |
+| `-win32icon:"Core IP theme Icon 01.ico"` | Embeds the icon into the PE resources. Without it the exe shows the default blank-page icon (the file name has spaces, so quotes are required) |
+| `-resource:X.resx,owlgame.X.resources` | Embeds WinForms resources. The right-hand side **must be the assembly-qualified name**: `owlgame` is the assembly, `MainForm.resources` is the resource name generated from `MainForm.cs`. Using a bare `MainForm.resources` throws `MissingManifestResourceException` at runtime |
+| `*.cs` (plus `Properties/*.cs`) | Compiles every source file at once. `Properties/Resources.Designer.cs` is the strongly typed resource accessor; `AssemblyInfo.cs` supplies version and copyright |
+
+All three `.resx` files matter: `MainForm.resx` (main window layout), `gamehelp.resx` (help window) and `Properties/Resources.resx` (icons and other strongly typed resources).
 
 ---
 

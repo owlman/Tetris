@@ -74,13 +74,15 @@
 
 ### 直接运行
 
-仓库中已跟踪编译好的可执行文件：
+仓库中跟踪了三份编译好的可执行文件，双击任意一份即可（Windows + .NET Framework 4.0 运行库）：
 
-```Bash
-owlgame/bin/Debug/owlgame.exe
-```
+| 文件 | 界面语言 |
+| --- | --- |
+| `owlgame/bin/Debug/owlgame.exe` | 跟随操作系统（中文系统显示中文，其余显示英文） |
+| `owlgame/bin/Debug/owlgame-zh.exe` | 恒为中文 |
+| `owlgame/bin/Debug/owlgame-en.exe` | 恒为英文 |
 
-双击即可（Windows + .NET Framework 4.0 运行库）。
+三份大小完全相同（217 088 字节），差异只在编译期常量，详见「构建三个语言变体」。
 
 > ⚠️ 该 exe 是**被版本控制跟踪**的产物。改动源码后必须重新编译并覆盖它，否则仓库里的程序与源码不一致（见「构建」一节）。
 
@@ -123,6 +125,55 @@ cp owlgame.pdb "<项目路径>/owlgame/bin/Debug/owlgame.pdb"
 - `/main:owlgame.Program` 必须给：目录里若残留带 `Main` 的探针文件会报 `CS0017: 程序集有多个入口点`。
 - 三个 `.resx` 必须以**程序集限定名**嵌入，否则运行时报 `MissingManifestResourceException`。
 - `csc` v4.0.30319 是 **C# 5** 编译器：不支持本地函数、`?.`、`$"..."` 插值等 C# 6+ 语法。
+
+### 构建三个语言变体
+
+上面那条命令只产出「跟随系统」的一版。要一次产出全部三版并回写跟踪的产物：
+
+```bash
+bash tests/build-release.sh
+```
+
+脚本在 `/c/t_rel`（纯 ASCII 路径）里连编三次，只是 `/define:` 多一个语言常量：
+
+| 产物 | 额外的编译期常量 | 界面语言 |
+| --- | --- | --- |
+| `owlgame.exe` | — | 跟随操作系统 UI 文化：`zh` → 中文，其余 → 英文 |
+| `owlgame-zh.exe` | `LANG_ZH` | 恒为中文，与系统语言无关 |
+| `owlgame-en.exe` | `LANG_EN` | 恒为英文，与系统语言无关 |
+| `owlgame.pdb` | — | 仅 `owlgame.exe` 的调试符号（两个变体不带 pdb） |
+
+`LANG_ZH` 与 `LANG_EN` 同时定义会触发编译期错误 `LANG_ZH and LANG_EN are mutually exclusive; pick one.`，不会静默取其中一个。
+
+**运行时优先级**（`Strings.Configure`，先命中者胜）：
+
+```
+--lang=zh|en   >   OWLGAME_LANG 环境变量   >   编译期常量 LANG_ZH/LANG_EN   >   系统 UI 文化
+```
+
+也就是说强制了语言的 exe 仍可被命令行或环境变量覆盖：
+
+```bash
+owlgame-en.exe --lang=zh                  # 英文版临时看中文
+set OWLGAME_LANG=en && owlgame-zh.exe     # 中文版临时看英文（cmd；PowerShell 用 $env:OWLGAME_LANG="en"）
+```
+
+### 编译选项逐条说明
+
+| 选项 | 为什么必须这么写 |
+| --- | --- |
+| `-nologo <散文件>` | `csc` 默认会把横幅打到 stdout，`-nologo` 让脚本输出干净 |
+| `-target:winexe` | 生成 GUI 程序：双击不弹控制台窗口（`exe` 会弹黑框，`library` 更是错的目标） |
+| `-main:owlgame.Program` | 显式指定入口。目录里若残留带 `Main` 的探针文件（`harness*.cs` / `check*.cs`），不给会报 `CS0017: 程序集有多个入口点` |
+| `-out:owlgame-en.exe` | 输出文件名。Git Bash 下必须配 `MSYS_NO_PATHCONV=1`，否则 `/out:` 会被当成路径转换掉 |
+| `-debug` | 生成 `.pdb`，异常堆栈带行号。**注意它不等于 `-define:DEBUG`**，两个是独立开关 |
+| `-define:TRACE,DEBUG` | 定义条件编译符号。**`TRACE` 不能省**：`Trace.WriteLine` 带 `[Conditional("TRACE")]`，不定义时整个调用会被编译器**静默删除**，诊断输出等于空操作（本项目踩过这个坑） |
+| `-define:...,LANG_ZH` | 本项目自定义的符号，把界面语言钉死在编译产物里（见 `owlgame/Strings.cs` 的 `ResolveBuildLanguage`） |
+| `-win32icon:"Core IP theme Icon 01.ico"` | 把图标嵌进 PE 资源。不写则 exe 显示成默认白纸图标（文件名含空格，必须加引号） |
+| `-resource:X.resx,owlgame.X.resources` | 嵌入 WinForms 资源。**右侧必须是「程序集限定名」**：`owlgame` 是程序集名，`MainForm.resources` 是 `MainForm.cs` 对应的资源名。写成 `MainForm.resources` 会在运行时抛 `MissingManifestResourceException` |
+| `*.cs`（含 `Properties/*.cs`） | 源码一锅编译。`Properties/Resources.Designer.cs` 是强类型资源访问器，`AssemblyInfo.cs` 提供版本与版权信息 |
+
+三个 `.resx` 缺一不可：`MainForm.resx`（主窗体布局资源）、`gamehelp.resx`（帮助窗体）、`Properties/Resources.resx`（图标等强类型资源）。
 
 ---
 

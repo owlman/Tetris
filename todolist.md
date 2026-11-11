@@ -13,6 +13,7 @@
 > **第 9 轮（对外门面）**：34 —— README 补 CI/协议/运行环境三个徽章 + 「界面」章节三张实拍截图 + 目录结构补齐 `tests/`、`.github/`、`img/`；顺带修掉 `owlnan` 拼写（README 与界面署名各一处）。新增 `tests/build-release.sh` 负责回写被跟踪的 exe。
 > **第 10 轮（测试入口澄清）**：35 —— 讲清 CI（`--skip-ui`，62 / 76）与本地（76 / 76）两条入口的覆盖差异，把被跳过的 14 条 UI 用例逐条对应到界面行为；修正 `tests/README.md` 里过时的 `12 skipped`。
 > **第 12 轮（界面国际化）**：37 —— 抽出 `owlgame/Strings.cs` 中英双语表（21 条文案 + 随语言切换的字体），语言解析链 `--lang=` → `OWLGAME_LANG` → 系统 UI 文化；`capture.sh en` 产出 `img/en/` 三张英文界面截图；新增 `StringsTests`（10 个用例，**不碰 WinForms，CI 也跑**），用例 76 → **86**（CI 侧 62 → 72）。顺带修正 csproj 里残留的旧小写文件名。
+> **第 13 轮（双语言构建）**：38 —— 语言也能在**编译期**钉死：`/define:LANG_ZH` / `LANG_EN`，`tests/build-release.sh` 一次产出 `owlgame.exe`（跟随系统）/ `owlgame-zh.exe` / `owlgame-en.exe` 三份并回写 `bin/Debug/`；解析链补成 4 级（命令行 > 环境变量 > 编译期常量 > 系统文化）；两份 README 各加「构建三个语言变体」与「编译选项逐条说明」。
 
 > 配套文档：[`AGENTS.md`](AGENTS.md)（构建/编码/验证规范）　[`README.md`](README.md)（项目说明）
 
@@ -725,12 +726,46 @@ GitHub 主页复盘时发现的落差：这个仓有 71 个用例 + CI 全绿 + 
 
 **踩坑**：
 
-1. `sed -i` 会把 CRLF 文件的行尾改成 LF —— 本仓 `.md` / `.cs` 都要求 CRLF，改一行就让 `git diff` 变成整文件重写。**改本仓文本一律用 Python `newline='
+1. `sed -i` 会把 CRLF 文件的行尾改成 LF —— 本仓 `.md` / `.cs` 都要求 CRLF，改一行就让 `git diff` 变成整文件重写。**改本仓文本一律用 Python `newline='
+
 '`，不要用 `sed -i`。**（本轮 `MainForm.cs:306` 一句注释被 `sed` 打回 LF，已立即用 Python 修复并复查了全部 `.cs` 的行尾）
 2. 替换脚本第一版把字体出现次数写错了（`MainForm.Designer.cs` 实际 15 处、`gamehelp.Designer.cs` 实际 11 处，脚本写的 12/8），而脚本是「校验命中数不符就 `exit 1`」—— 这样反而挡住了半数替换：重启后才在第二项处中断，前面已写入的文件再跑就报「0 命中」。**改法：每个文件先 `grep -c` 数一遍再写进脚本，或给每段加幂等跳过。**
 3. `MuscoviteBlock.csproj` 缺 `GameBoard.cs` 这件事，直到脚本按「必须命中一次」去改才暴露 —— 之前所有构建都走 `csc *.cs` 通配，绕过了 csproj，缺陷一直静默。
 
 - **预估**：90 分钟（实际约 80 分钟）
+
+---
+
+### [x] 38. 中英文各编译一版（第 13 轮）
+
+第 12 轮把语言做成**运行时**可解析（`--lang=` / `OWLGAME_LANG` / 系统文化），但产物只有一个 exe —— 在英文系统上想要中文界面必须手动加参数或设环境变量，双击得到的永远是系统语言那版。本轮让语言也能在**编译期钉死**，产出三份独立可执行文件。
+
+| 项 | 改动 |
+| --- | --- |
+| 编译期常量 | `owlgame/Strings.cs` 新增 `ResolveBuildLanguage()`：`#if LANG_ZH` → `Language.Chinese`，`#elif LANG_EN` → `Language.English`，都不定义 → `null`；两者同时定义触发 `#error LANG_ZH and LANG_EN are mutually exclusive; pick one.` |
+| 解析链 | 由 3 级补成 4 级：`--lang=xx` > `OWLGAME_LANG` > **编译期常量** > 系统 UI 文化（`current = buildLanguage ?? SystemDefault`） |
+| 只读属性 | `public static Language? BuildLanguage`，外部可判断当前二进制是否被钉死 |
+| 构建脚本 | `tests/build-release.sh` 从「编一版」扩成连编三次：`owlgame.exe`（无常量）/ `owlgame-zh.exe`（`LANG_ZH`）/ `owlgame-en.exe`（`LANG_EN`），回写 `bin/Debug/` 四份文件（三 exe + 默认版的 pdb） |
+| 文档 | 两份 README 各加「构建三个语言变体」（产物表 + 运行时优先级 + 覆盖示例）与「编译选项逐条说明」（11 个选项逐一解释，含 `-debug` 与 `-define:DEBUG` 的区别、`-resource:` 右侧为何必须是程序集限定名） |
+
+**验证**（PowerShell `Start-Process -PassThru` 启动真实 exe，读 `MainWindowTitle`，结果写 UTF-8 文件再用 Python 读回）：
+
+| exe | 启动参数 | 窗口标题 | 结论 |
+| --- | --- | --- | --- |
+| `owlgame.exe` | 无 | 俄罗斯方块 | 跟随系统（本机 zh-CN）✅ |
+| `owlgame-zh.exe` | 无 | 俄罗斯方块 | `LANG_ZH` 生效 ✅ |
+| `owlgame-en.exe` | 无 | Tetris | `LANG_EN` 生效 ✅ |
+| `owlgame-en.exe` | `--lang=zh` | 俄罗斯方块 | 命令行压过编译期常量 ✅ |
+| `owlgame-zh.exe` | `--lang=en` | Tetris | 同上 ✅ |
+
+三份 exe 大小同为 217 088 字节（常量差异不改变体积）；`bash tests/run.sh` 86 个用例 + 2 个像素探针全 PASS，基线 `wall=20812` / `colored=64548` 未变。
+
+**坑**：
+
+1. PowerShell 5.1 按系统 ANSI（936）读**无 BOM** 的 `.ps1`，脚本里的中文路径变成乱码 → `Out-File` 报 `DirectoryNotFoundException`。`.ps1` 必须先补 UTF-8 BOM（与 `.cs` 同理）。
+2. `Start-Process -ArgumentList @()` 传空数组会让 `$p` 为 `null`，随后 `$p.Refresh()` 抛 `InvokeMethodOnNull` 且标题读成空 —— 无参数的分支必须单独写一个不带 `-ArgumentList` 的 `Start-Process`。
+
+- **预估**：40 分钟（实际约 45 分钟）
 
 ---
 
@@ -764,6 +799,7 @@ GitHub 主页复盘时发现的落差：这个仓有 71 个用例 + CI 全绿 + 
 第 10 轮（测试入口澄清）   35（CI 覆盖边界文档化）✅                   62/76 vs 76/76，14 条 UI 用例逐条列出
 第 11 轮（对外门面）       36（中英双语 README）✅                     两份 210 行，章节/表格/链接 1:1 对齐
 第 12 轮（界面国际化）     37（Strings.cs 双语表 + 英文截图）✅          用例 76 → 86，CI 62 → 72
+第 13 轮（双语言构建）     38（LANG_ZH / LANG_EN 编译期常量 + 三份 exe）✅  用例仍 86，三份 exe 的窗口标题实测
 ```
 
 ---

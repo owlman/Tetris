@@ -77,7 +77,7 @@ Tetris/
 │   ├── gamehelp.cs(+Designer) # 「说明」帮助窗体
 │   ├── MainForm.resx / gamehelp.resx
 │   ├── Properties/          # AssemblyInfo / Resources / Settings
-│   ├── bin/Debug/           # 仅 owlgame.exe / owlgame.pdb 被跟踪（clone 即可运行）；vshost 已移出
+│   ├── bin/Debug/           # owlgame.exe / owlgame-zh.exe / owlgame-en.exe / owlgame.pdb 被跟踪（clone 即可运行）；vshost 已移出
 │   └── obj/                 # 构建中间产物，**已全部移出版本控制**并由 .gitignore 忽略
 ├── tests/                   # 测试与探针（framework / TetrisTests / probes / tools / run.sh / capture.sh）
 ├── .github/workflows/ci.yml  # GitHub Actions：windows-latest 跑 run.sh --skip-ui
@@ -150,6 +150,21 @@ cp owlgame.pdb "$P/owlgame/bin/Debug/owlgame.pdb"
 - 三个 `.resx` 必须以程序集限定名嵌入，否则运行时报 `MissingManifestResourceException`。
 - 图标是 `Core IP theme Icon 01.ico`（161 KB，VS 升级产物），用 `/win32icon:` 才能带上，否则 exe 图标丢失。
 - `/define:TRACE,DEBUG` 不能省：`System.Diagnostics.Trace.WriteLine` 带 `[Conditional("TRACE")]`，**不定义常量时整个调用会被编译器移除**，诊断输出等于空操作。
+
+### 一键构建三个语言变体
+
+`bash tests/build-release.sh` 在 `/c/t_rel` 里连编三次，只差一个 `/define:` 常量，然后回写 4 个跟踪产物：
+
+| 产物 | 额外常量 | 界面语言 |
+| --- | --- | --- |
+| `owlgame/bin/Debug/owlgame.exe` | — | 跟随操作系统 UI 文化 |
+| `owlgame/bin/Debug/owlgame-zh.exe` | `LANG_ZH` | 恒中文 |
+| `owlgame/bin/Debug/owlgame-en.exe` | `LANG_EN` | 恒英文 |
+| `owlgame/bin/Debug/owlgame.pdb` | — | 仅默认版的符号 |
+
+- 常量解析在 `owlgame/Strings.cs` 的 `ResolveBuildLanguage()`：`#if LANG_ZH` / `#elif LANG_EN`；两者同时定义触发 `#error LANG_ZH and LANG_EN are mutually exclusive; pick one.`
+- 运行时优先级：`--lang=zh|en` > `OWLGAME_LANG` 环境变量 > 编译期常量 > 系统 UI 文化（`Strings.Configure`）。
+- **改了源码就重跑这个脚本**，不要只编默认版 —— 三个 exe 都在版本控制里，漏编会让某一版落后于源码。
 
 ---
 
