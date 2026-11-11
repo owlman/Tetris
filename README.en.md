@@ -14,7 +14,7 @@ A Tetris clone written in C# + WinForms. The board, the falling pieces and the n
 
 ## Screenshots
 
-All three images are produced automatically by `tests/capture.sh` driving the **real program**: it reflectively invokes `MainForm.buttonstart.PerformClick()` to start a game, then advances frame by frame on the game clock and captures the window with `DrawToBitmap`.
+All three images are produced automatically by `tests/capture.sh` driving the **real program**: it reflectively invokes `MainForm.buttonstart.PerformClick()` to start a game, then advances frame by frame on the game clock and captures the window with `DrawToBitmap`. The script pins `OWLGAME_SEED` to `20261111`, so re-running it produces byte-identical PNGs instead of churning the repository with binary noise.
 
 | Start | In play (staircase formed) | First score |
 | --- | --- | --- |
@@ -272,6 +272,7 @@ The CI `windows-latest` runner is **session 0** and has no interactive desktop, 
 | ~~New GDI objects every frame + full-board repaint~~ | **Fixed**: pens/brushes promoted to reusable fields, repaint narrowed to the union of the piece's old and new bounds |
 | ~~Start button greyed out after game over~~ | **Fixed**: the button is re-enabled and its caption reset, so one click starts a new game |
 | `gamecontroller.cs` has `using System.Windows.Forms` | It needs `Panel` / `PictureBox` / `PaintEventArgs` |
+| Scores of six digits or more push the read-out against the card edge | The read-out is a 22pt `AutoSize` label inside a 132px card: six Chinese digits take 131px (just fits), eight take 169px (overflows). Eight digits means ten million points — thousands of four-line clears — so no adaptive font size was added; six digits is the realistic ceiling and looks fine. |
 
 ---
 

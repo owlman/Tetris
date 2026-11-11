@@ -24,8 +24,22 @@ namespace owlgame
         // from Environment.TickCount (about 15 ms resolution), so two blocks
         // created back to back got identical shapes and colours - the "next"
         // preview used to show a copy of the current block on every new game.
-        private static readonly Random random = new Random();
+        //
+        // Set OWLGAME_SEED to any integer to make the sequence reproducible,
+        // which is what lets tests/capture.sh produce byte-identical
+        // screenshots on every run. Unset (the normal case) keeps the game
+        // random from launch to launch.
+        private static readonly Random random = new Random(ResolveSeed());
         private static readonly object randomLock = new object();
+
+        private static int ResolveSeed()
+        {
+            string text = Environment.GetEnvironmentVariable("OWLGAME_SEED");
+            int seed;
+            if (!string.IsNullOrEmpty(text) && int.TryParse(text, out seed))
+                return seed;
+            return Environment.TickCount;
+        }
 
         /// <summary>Colour per shape index (classic Tetris mapping).</summary>
         private static readonly Color[] shapeColors =

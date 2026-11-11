@@ -6,6 +6,8 @@
 #   BUILD_DIR=/c/t_shots bash tests/capture.sh en
 #
 # 语言由环境变量 OWLGAME_LANG 传给探针（Strings.Configure 的解析链会读它）。
+# 方块序列由 OWLGAME_SEED 固定（默认 20261111），所以重复运行得到的 PNG 逐字节
+# 相同，不会因为随机方块而每次提交都产生二进制噪音。
 #
 # 与 run.sh 相同的两条构建约束：csc 不支持中文路径，且 Git Bash 会剥掉带目录
 # 前缀的参数，所以源码先扁平拷进纯 ASCII 构建目录，再 cd 进去用 *.cs 通配。
@@ -31,6 +33,7 @@ case "$LANG_CODE" in
         ;;
 esac
 export OWLGAME_LANG="$LANG_CODE"
+export OWLGAME_SEED="${OWLGAME_SEED:-20261111}"
 
 if [ ! -x "$CSC" ]; then
     echo "找不到 csc.exe: $CSC" >&2

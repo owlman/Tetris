@@ -14,7 +14,7 @@
 
 ## 界面
 
-三张图都由 `tests/capture.sh` 驱动**真实程序**自动跑出来：反射调用 `MainForm.buttonstart.PerformClick()` 开局，再按游戏时钟逐帧推进，用 `DrawToBitmap` 截屏。
+三张图都由 `tests/capture.sh` 驱动**真实程序**自动跑出来：反射调用 `MainForm.buttonstart.PerformClick()` 开局，再按游戏时钟逐帧推进，用 `DrawToBitmap` 截屏。脚本把 `OWLGAME_SEED` 固定成 `20261111`，所以重复运行得到的 PNG 逐字节相同，重新生成截图不会产生二进制噪音。
 
 | 开局 | 游戏中（已堆起阶梯） | 首次得分 |
 | --- | --- | --- |
@@ -272,6 +272,7 @@ CI 的 `windows-latest` runner 是 **session 0**，没有交互式桌面，所�
 | ~~每帧新建 GDI 对象 + 全棋盘重绘~~ | **已修复**：Pen/Brush 提为字段复用，重绘收窄到块移动的并集区域 |
 | ~~游戏结束后「开始」按钮变灰~~ | **已修复**：失败后按钮恢复可用且文案复位，一次点击即可开新局 |
 | `gamecontroller.cs` 里有 `using System.Windows.Forms` | 为了用 `Panel` / `PictureBox` / `PaintEventArgs` |
+| 分数到 6 位以上时读数会贴边甚至溢出卡片 | 读数是 22pt 的 `AutoSize` Label，塞在 132px 宽的卡片里：中文 6 位占 131px（勉强不越界）、8 位占 169px（越界）。8 位意味着千万分，需要连消 4 行上千次，实际不可达，因此没有做自适应字号；6 位是现实上限，可以接受。|
 
 ---
 

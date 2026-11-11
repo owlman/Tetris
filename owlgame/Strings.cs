@@ -206,9 +206,16 @@ namespace owlgame
         }
 
         /// <summary>Text shown on the overlay once the stack reaches the top.</summary>
+        /// <remarks>
+        /// Split over two lines on purpose: the overlay is only as wide as the
+        /// playfield (220 px) and a single line with a six digit score needs
+        /// more than that, so it used to be clipped at the edges.
+        /// </remarks>
         public static string GameOver(int score)
         {
-            return T("你失败了… 分数 ", "Game over - score ")
+            return T("你失败了…", "Game over")
+                + Environment.NewLine
+                + T("分数 ", "Score ")
                 + score.ToString(CultureInfo.InvariantCulture);
         }
 

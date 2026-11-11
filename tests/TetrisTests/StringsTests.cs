@@ -198,10 +198,15 @@ namespace TetrisTests
         public void GameOverCarriesTheScore()
         {
             Strings.SetLanguage(Strings.Language.English);
-            Assert.AreEqual("Game over - score 1234", Strings.GameOver(1234),
+            string rooms = "Game over" + Environment.NewLine + "Score ";
+            Assert.AreEqual(rooms + "1234", Strings.GameOver(1234),
                 "the score must be rendered into the overlay text");
-            Assert.AreEqual("Game over - score 0", Strings.GameOver(0),
+            Assert.AreEqual(rooms + "0", Strings.GameOver(0),
                 "a zero score is still a number, not a special case");
+            Strings.SetLanguage(Strings.Language.Chinese);
+            Assert.AreEqual("你失败了…" + Environment.NewLine + "分数 999999",
+                Strings.GameOver(999999),
+                "a six digit score must be rendered without being clipped");
             Strings.SetLanguage(Strings.Language.Chinese);
         }
     }

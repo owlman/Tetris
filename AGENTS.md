@@ -247,8 +247,9 @@ Block (数据 + 形状表)
 - **不支持运行时切换语言**：所有标签都在窗体构造函数里取值，切换要遍历控件树重排布局，本项目没这个需求。因此 `Strings.current` 的静态初值是 `Chinese`，测试进程不调 `Configure` 就一直是中文。
 - **字体也来自 `Strings.UiFont`**（zh = `微软雅黑`，en = `Segoe UI`）。Designer 里写的是 `new System.Drawing.Font(owlgame.Strings.UiFont, 15F, ...)`；直接改回硬编码字体名会让英文界面继续用雅黑渲染拉丁文。
 - **拿按钮文案做状态判断的地方必须引用 `Strings.*`**：`buttonstart_Click` 靠 `buttonstart.Text` 在「开始/停止」间分流，把 `Strings.StartButton` 写死在 Designer、判断处写死中文字符串，会让英文界面点了没反应。
-- `Strings.GameOver(int score)` 是唯一带参数的文案（覆盖层显示「你失败了… 分数 N」/「Game over - score N」）。
+- `Strings.GameOver(int score)` 是唯一带参数的文案，**输出两行**（`你失败了…` + 换行 + `分数 N` / `Game over` + 换行 + `Score N`）。单行放不下 6 位分数 —— 棋盘只有 220px 宽，而 `你失败了… 分数 999999` 需要 232px，历史上就是在这里被裁掉的。
 - 截图：`bash tests/capture.sh` → `img/`（中文），`bash tests/capture.sh en` → `img/en/`（英文）；语言经 `OWLGAME_LANG` 传给探针，探针自己调 `Strings.Configure(new string[0])`（它不跑 `Program.Main`）。
+- **截图可复现**：`capture.sh` 固定 `OWLGAME_SEED=20261111`，`Block.ResolveSeed()` 读它作为 `Random` 的种子。同一份源码重复跑，6 张 PNG 逐字节相同；想让截图换一批方块就改这个环境变量，**不要**去掉它（否则每次生成都会产生 4 个大二进制 diff）。
 
 ### 关键状态约定
 
