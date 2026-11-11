@@ -83,7 +83,8 @@ Tetris/
 ├── temp_build/              # 未跟踪：空的构建暂存目录
 ├── .vs/                     # 未跟踪：VS 2026 本地状态
 ├── LICENSE                  # MIT License（2006-2026 owlman）
-├── README.md                # 项目简介
+├── README.md                # 项目简介（简体中文）
+├── README.en.md             # English README
 ├── owlgame.sln / owlgame.suo
 └── UpgradeLog.htm(2)       # VS 升级迁移报告，噪声文件
 ```

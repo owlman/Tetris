@@ -1,5 +1,7 @@
 # 俄罗斯方块（C# 实现）
 
+**简体中文** ｜ [English](README.en.md)
+
 [![CI](https://github.com/owlman/Tetris/actions/workflows/ci.yml/badge.svg)](https://github.com/owlman/Tetris/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.0-512bd4.svg)](https://dotnet.microsoft.com/download/dotnet-framework)
@@ -129,7 +131,8 @@ Tetris/
 ├── .github/workflows/ci.yml    # GitHub Actions（windows-latest，跑 run.sh --skip-ui）
 ├── img/                        # README 截图（由 tests/capture.sh 生成）
 ├── AGENTS.md                   # 面向 AI Agent 的项目工作指引（构建 / 编码 / 验证）
-├── README.md                   # 本文件
+├── README.md                   # 本文件（简体中文）
+├── README.en.md                # English README
 └── owlgame.sln                 # 解决方案（已升级到 Format 12.00）
 ```
 
