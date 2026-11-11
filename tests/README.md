@@ -26,6 +26,7 @@ tests/
 │   ├── BlockTests.cs           # 形状表、随机性、旋转、拷贝构造
 │   ├── GameBoardTests.cs       # 墙、落位、移动、合并、消行、回合流转
 │   ├── ScoreTests.cs           # 计分表、等级、下落间隔
+│   ├── StringsTests.cs         # 双语文案表与语言解析（不碰 WinForms，CI 也跑）
 │   └── UiTests.cs              # 需要窗口的用例（[Category("UI")]）
 ├── probes/                     # 像素探针（输出基线数字，不是 PASS/FAIL）
 │   ├── Round2Regression.cs     # 增量重绘 vs 全绘逐像素比对、GDI 句柄
@@ -57,8 +58,8 @@ Results: 56 passed, 1 failed, 0 skipped, 57 total (1889 ms)
 ## 实测基线
 
 ```
-单元测试（--skip-ui）：62 passed, 0 failed, 14 skipped, 76 total
-单元测试（完整）    ：76 passed, 0 failed, 0 skipped, 76 total
+单元测试（--skip-ui）：72 passed, 0 failed, 14 skipped, 86 total
+单元测试（完整）    ：86 passed, 0 failed, 0 skipped, 86 total
 ```
 
 `PixelSmoke`（220×388 棋盘，`cellWidth=11` / `cellHeight=11`，**35 行**）：
@@ -104,11 +105,11 @@ for (int k = sorted.Count - 1; k >= 0; --k)   // 错
 
 | 入口 | 命令 | 覆盖范围 |
 | --- | --- | --- |
-| **CI**（`.github/workflows/ci.yml`） | `bash tests/run.sh --skip-ui` | 62 个逻辑用例 + 2 个像素探针 |
-| **本地完整** | `bash tests/run.sh` | 76 个用例（含 14 个 UI 用例）+ 2 个像素探针 |
+| **CI**（`.github/workflows/ci.yml`） | `bash tests/run.sh --skip-ui` | 72 个逻辑用例 + 2 个像素探针 |
+| **本地完整** | `bash tests/run.sh` | 86 个用例（含 14 个 UI 用例）+ 2 个像素探针 |
 | **截图**（不在任何自动化里） | `bash tests/capture.sh` | 只出图，无断言 |
 
-CI 用 `--skip-ui` 的原因写在 `ci.yml` 的注释里：GitHub 的 `windows-latest` runner 是 **session 0**，没有交互式桌面，涉及 `Form.Show()` 与消息循环的断言不可靠。`--list` 不受影响，两种模式下都列出全部 76 条，别用它判断覆盖范围。
+CI 用 `--skip-ui` 的原因写在 `ci.yml` 的注释里：GitHub 的 `windows-latest` runner 是 **session 0**，没有交互式桌面，涉及 `Form.Show()` 与消息循环的断言不可靠。`--list` 不受影响，两种模式下都列出全部 86 条，别用它判断覆盖范围。
 
 ### CI 绿了，但下面这 14 条一次都没跑
 

@@ -222,7 +222,7 @@ namespace owlgame
 
         private void buttonstart_Click(object sender, EventArgs e)
         {
-            if (buttonstart.Text == "开始(&E)")
+            if (buttonstart.Text == Strings.StartButton)
             {
                 gaizi.Hide();
                 ResetController();
@@ -232,7 +232,7 @@ namespace owlgame
                 UpdateStatus();
                 gamewiew.Invalidate();
                 proimg.Invalidate();
-                buttonstart.Text = "停止(&P)";
+                buttonstart.Text = Strings.StopButton;
                 gamewiew.Focus();
             }
             else
@@ -243,8 +243,8 @@ namespace owlgame
                 // the clock back on, restarting a game the user just stopped.
                 CancelPendingClear();
                 gaizi.Show();
-                buttonstart.Text = "开始(&E)";
-                welcomelabel.Text = "欢迎尝试游戏";
+                buttonstart.Text = Strings.StartButton;
+                welcomelabel.Text = Strings.Welcome;
                 proimg.Invalidate();
                 gaizi.Focus();
 
@@ -300,12 +300,12 @@ namespace owlgame
                 gametimer.Enabled = false;
                 CancelPendingClear();
                 gaizi.Show();
-                welcomelabel.Text = "你失败了… 分数 " + controller.Board.Score;
+                welcomelabel.Text = Strings.GameOver(controller.Board.Score);
                 // Keep the start button usable and restore its caption so a
                 // single click starts the next round; it used to be disabled,
-                // leaving "重玩" as the only way out.
+                // leaving "restart" as the only way out.
                 buttonstart.Enabled = true;
-                buttonstart.Text = "开始(&E)";
+                buttonstart.Text = Strings.StartButton;
                 gaizi.Focus();
                 gamewiew.Invalidate();
                 return;
@@ -377,7 +377,7 @@ namespace owlgame
             UpdateStatus();
             gamewiew.Invalidate();
             proimg.Invalidate();
-            buttonstart.Text = "停止(&P)";
+            buttonstart.Text = Strings.StopButton;
             gamewiew.Focus();
         }
 

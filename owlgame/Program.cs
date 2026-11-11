@@ -14,8 +14,12 @@ namespace owlgame
         /// 应用程序的主入口点。
         /// </summary>
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
+            // Picks the UI language before any window exists; the labels are
+            // fixed at construction time, so this is the only moment it can run.
+            Strings.Configure(args);
+
             // Without this the window is rendered at 96 DPI and then bitmap
             // stretched by the system on a 125% / 150% display, which blurs both
             // the text and the cell edges. Must run before any window exists.

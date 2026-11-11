@@ -37,8 +37,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="block.cs" />
-    <Compile Include="gamecontroller.cs" />
+    <Compile Include="Block.cs" />
+    <Compile Include="GameController.cs" />
+    <Compile Include="GameBoard.cs" />
     <Compile Include="gamehelp.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -51,6 +52,7 @@
     <Compile Include="MainForm.Designer.cs">
       <DependentUpon>MainForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Strings.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="gamehelp.resx">

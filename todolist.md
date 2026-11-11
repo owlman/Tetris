@@ -12,6 +12,7 @@
 > **第 33 项**：全面测试发现并修掉两处状态机缺陷（动画期间的停止/重玩/结束/帮助），用例 72 → 76，均做了回退验证。
 > **第 9 轮（对外门面）**：34 —— README 补 CI/协议/运行环境三个徽章 + 「界面」章节三张实拍截图 + 目录结构补齐 `tests/`、`.github/`、`img/`；顺带修掉 `owlnan` 拼写（README 与界面署名各一处）。新增 `tests/build-release.sh` 负责回写被跟踪的 exe。
 > **第 10 轮（测试入口澄清）**：35 —— 讲清 CI（`--skip-ui`，62 / 76）与本地（76 / 76）两条入口的覆盖差异，把被跳过的 14 条 UI 用例逐条对应到界面行为；修正 `tests/README.md` 里过时的 `12 skipped`。
+> **第 12 轮（界面国际化）**：37 —— 抽出 `owlgame/Strings.cs` 中英双语表（21 条文案 + 随语言切换的字体），语言解析链 `--lang=` → `OWLGAME_LANG` → 系统 UI 文化；`capture.sh en` 产出 `img/en/` 三张英文界面截图；新增 `StringsTests`（10 个用例，**不碰 WinForms，CI 也跑**），用例 76 → **86**（CI 侧 62 → 72）。顺带修正 csproj 里残留的旧小写文件名。
 
 > 配套文档：[`AGENTS.md`](AGENTS.md)（构建/编码/验证规范）　[`README.md`](README.md)（项目说明）
 
@@ -694,6 +695,45 @@ GitHub 主页复盘时发现的落差：这个仓有 71 个用例 + CI 全绿 + 
 
 ---
 
+### [x] 37. 界面文案国际化（第 12 轮）
+
+第 11 轮补了英文 README，但程序界面仍是纯中文 —— 英文 README 里贴的三张截图全是中文按钮，读者看到「同款」界面反而更困惑。本轮把界面文案抽成一张双语表。
+
+| 项 | 改动 |
+| --- | --- |
+| 新增 | `owlgame/Strings.cs`：`enum Language { Chinese, English }` + 21 条文案属性 + `UiFont` + `GameOver(int score)`，全部走 `T("中文", "English")` 一行切换 |
+| 语言解析 | `Strings.Configure(string[] args)`，优先级 `--lang=xx` → `OWLGAME_LANG` 环境变量 → `CultureInfo.CurrentUICulture`（`zh` → Chinese，其余 → English）；`Program.Main` 改签名收 `args` 并把它放在**第一行** |
+| 字体 | `UiFont`：中文微软雅黑 / 英文 Segoe UI。Designer 里 26 处 `new Font("微软雅黑", ...)` 全部换成 `new Font(owlgame.Strings.UiFont, ...)` |
+| 界面文案 | `MainForm.Designer.cs` 12 处、`gamehelp.Designer.cs` 7 处、`MainForm.cs` 5 处（含 `buttonstart.Text` 的开始/停止分流、失败覆盖层）改引用 `Strings.*` |
+| 截图 | `tests/capture.sh` 支持 `en` 参数 → 输出 `img/en/`，语言经 `OWLGAME_LANG` 传给探针；探针自己调 `Strings.Configure`（它不跑 `Program.Main`） |
+| 测试 | 新增 `tests/TetrisTests/StringsTests.cs`（10 个用例）：解析优先级 / 大小写不敏感 / 非法值回落 / 文化映射 / 每条中文含 CJK / 每条英文不含 CJK / 两列互不相同 / 字体随语言 / `GameOver` 带分数 |
+| 文档 | 两份 README 各加「界面语言 / UI Language」小节（含对方语言的截图预览）；英文 README 主图改指 `img/en/` |
+| 顺手修 | `MuscoviteBlock.csproj` 里 `block.cs` / `gamecontroller.cs` 是第 3 轮改名遗留的旧小写名，拆出的 `GameBoard.cs` 也一直没加进去 —— 靠 Windows 大小写不敏感 + `csc *.cs` 通配掩盖至今，用 VS 打开才会暴露 |
+
+**为什么不做运行时切换**：所有标签都在窗体构造函数里从 `Strings` 取值。做成运行时可切换要遍历控件树、重设文本、重排布局（英文比中文长，卡片宽度会变），对本项目零收益。语言只在 `Program.Main` 里解析一次。
+
+**验证**：
+
+| 检查项 | 结果 |
+| --- | --- |
+| `I18nCheck` 探针（22 项断言） | 中文与英文各构造一次 `MainForm` / `gamehelp`，读回 `Text` / `Font.Name` / 按钮文案，22/22 PASS |
+| `bash tests/run.sh` | 86 个用例 + 2 个像素探针，全 PASS（原有 76 个一条没破） |
+| 像素基线 | `wall=20812`、`colored=64548` 与第 8 轮一致，配色/几何未受影响 |
+| 英文截图 | `img/en/` 三张：标题 `Tetris`、`Next` / `Controls` / `Score` / `Level` / `Lines` / `Help` / `Start` 或 `Stop` / `Restart` / `Exit` / `by owlman`，`Score 100`、`Lines 1` 正常 |
+| 中文截图 | `img/welcome.png` 与第 8 轮**逐字节相同**（字体仍是雅黑、文案未变），说明重构没有动到视觉 |
+| 英文版 README 残留中文图 | 3 处，全部在「UI Language」小节，是有意展示的中文界面 |
+
+**踩坑**：
+
+1. `sed -i` 会把 CRLF 文件的行尾改成 LF —— 本仓 `.md` / `.cs` 都要求 CRLF，改一行就让 `git diff` 变成整文件重写。**改本仓文本一律用 Python `newline='
+'`，不要用 `sed -i`。**（本轮 `MainForm.cs:306` 一句注释被 `sed` 打回 LF，已立即用 Python 修复并复查了全部 `.cs` 的行尾）
+2. 替换脚本第一版把字体出现次数写错了（`MainForm.Designer.cs` 实际 15 处、`gamehelp.Designer.cs` 实际 11 处，脚本写的 12/8），而脚本是「校验命中数不符就 `exit 1`」—— 这样反而挡住了半数替换：重启后才在第二项处中断，前面已写入的文件再跑就报「0 命中」。**改法：每个文件先 `grep -c` 数一遍再写进脚本，或给每段加幂等跳过。**
+3. `MuscoviteBlock.csproj` 缺 `GameBoard.cs` 这件事，直到脚本按「必须命中一次」去改才暴露 —— 之前所有构建都走 `csc *.cs` 通配，绕过了 csproj，缺陷一直静默。
+
+- **预估**：90 分钟（实际约 80 分钟）
+
+---
+
 ## [!] 需要用户拍板的决策点
 
 | # | 决策 | 选项 | 影响 |
@@ -723,6 +763,7 @@ GitHub 主页复盘时发现的落差：这个仓有 71 个用例 + CI 全绿 + 
 第 9 轮（对外门面）       34（README 徽章 + 截图 + 署名校对）✅   新增 capture.sh / build-release.sh
 第 10 轮（测试入口澄清）   35（CI 覆盖边界文档化）✅                   62/76 vs 76/76，14 条 UI 用例逐条列出
 第 11 轮（对外门面）       36（中英双语 README）✅                     两份 210 行，章节/表格/链接 1:1 对齐
+第 12 轮（界面国际化）     37（Strings.cs 双语表 + 英文截图）✅          用例 76 → 86，CI 62 → 72
 ```
 
 ---
@@ -731,6 +772,5 @@ GitHub 主页复盘时发现的落差：这个仓有 71 个用例 + CI 全绿 + 
 
 | 想法 | 来源 | 说明 |
 | --- | --- | --- |
-| 界面文案国际化 + 英文界面截图 | 第 11 轮（36） | 英文 README 已就绪，但 `img/` 里三张截图仍是中文按钮与中文读数。要做需要两步：① 把界面文案抽成可切换资源（牵动 `UiTests` 里对「开始」「游戏失败啦」等文本的断言）；② `tests/capture.sh` 支持按语言各生成一套图 |
 | 消行音效 | 第 5 轮（13）遗留 | 缺音频资源。可用 `System.Media.SoundPlayer` + 短 wav，或程序内合成 |
 | 真正的暂停 / 继续 | 质量评估剩余短板 P1 | 现在是「开始/停止」，停止会丢弃当前局面。需要保留 `GameBoard` 状态、只停定时器，把「停止」拆成「暂停」与「结束」两个语义 |

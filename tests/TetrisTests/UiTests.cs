@@ -125,7 +125,7 @@ namespace TetrisTests
                 Settle();
 
                 Assert.IsTrue(clock.Enabled, "the clock runs after clicking start");
-                Assert.AreEqual("停止(&P)", start.Text, "the button switched to stop");
+                Assert.AreEqual(Strings.StopButton, start.Text, "the button switched to stop");
             }
         }
 
@@ -336,7 +336,7 @@ namespace TetrisTests
         private static GameController EnterClearAnimation(MainForm form)
         {
             Button start = (Button)Field(form, "buttonstart");
-            if (!start.Text.StartsWith("开始"))
+            if (start.Text != Strings.StartButton)
             {
                 start.PerformClick();
                 Settle();
@@ -391,7 +391,7 @@ namespace TetrisTests
 
                 Pump(350);                 // long enough for the animation to have finished
                 Assert.IsFalse(clock.Enabled, "a pending animation must not restart the clock");
-                Assert.IsTrue(start.Text.StartsWith("开始"), "the button still reads start");
+                Assert.AreEqual(Strings.StartButton, start.Text, "the button still reads start");
             }
         }
 
@@ -427,7 +427,7 @@ namespace TetrisTests
 
             using (Form help = (Form)Activator.CreateInstance(helpType))
             {
-                Assert.AreEqual("微软雅黑", help.Font.Name, "help window uses the app typeface");
+                Assert.AreEqual(Strings.UiFont, help.Font.Name, "help window uses the app typeface");
 
                 Label up = (Label)Field(help, "rotateKey");
                 Label left = (Label)Field(help, "leftKey");
@@ -445,7 +445,7 @@ namespace TetrisTests
                 Assert.AreEqual("↓", down.Text, "down uses the down arrow");
 
                 foreach (Label key in new Label[] { up, left, right, down })
-                    Assert.AreEqual("微软雅黑", key.Font.Name, "key caps use the app typeface");
+                    Assert.AreEqual(Strings.UiFont, key.Font.Name, "key caps use the app typeface");
 
                 Button ok = (Button)Field(help, "button1");
                 Assert.IsNotNull(ok, "confirm button exists");

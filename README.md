@@ -24,6 +24,25 @@
 
 ---
 
+## 界面语言
+
+界面文案中英双语，默认跟随系统语言（中文系统显示中文，其余显示英文）。两种切换方式：
+
+| 方式 | 示例 |
+| --- | --- |
+| 命令行参数 | `owlgame.exe --lang=en` |
+| 环境变量 | `set OWLGAME_LANG=en`（PowerShell：`$env:OWLGAME_LANG="en"`）后再启动 |
+
+语言在创建第一个窗口前解析一次，运行期间不切换 —— 所有标签都是在构造函数里从 `owlgame/Strings.cs` 取值，做成运行时可切换需要遍历控件树重排布局，本项目没有这个需求。字体也随语言走：中文用微软雅黑，英文用 Segoe UI（拉丁字形明显更好）；帮助窗体的键帽、按钮、卡片配色两套语言完全一致，由 `UiTests.HelpWindowMatchesTheModernStyle` 锁定。
+
+英文界面截图在 `img/en/`，由 `bash tests/capture.sh en` 生成（落点评估器与中文图同一套逻辑）：
+
+| Start | In play | First score |
+| --- | --- | --- |
+| ![Start screen](img/en/welcome.png) | ![In play](img/en/playing.png) | ![First score](img/en/scoring.png) |
+
+---
+
 ## 玩法
 
 | 按键 | 功能 |
@@ -113,7 +132,8 @@ cp owlgame.pdb "<项目路径>/owlgame/bin/Debug/owlgame.pdb"
 Tetris/
 ├── owlgame/                    # 唯一的项目目录（项目名 MuscoviteBlock，程序集名 owlgame）
 │   ├── MuscoviteBlock.csproj   # VS2005 时代的老式 csproj（Format 12.00，非 SDK-style）
-│   ├── Program.cs              # 入口：EnableVisualStyles + Run(new MainForm())
+│   ├── Program.cs              # 入口：解析 --lang / OWLGAME_LANG 后 Run(new MainForm())
+│   ├── Strings.cs              # 界面文案表（中英双语）+ 语言解析 + 随语言切换的字体
 │   ├── MainForm.cs             # 主窗体逻辑（自绘派发的唯一入口）
 │   ├── MainForm.Designer.cs    # 主窗体布局（设计器生成）
 │   ├── GameBoard.cs            # 纯逻辑：棋盘 + 移动/旋转/落子/消行/失败判定（不引用 WinForms）
@@ -126,10 +146,11 @@ Tetris/
 │   ├── framework/              # 自建的极简测试框架（反射发现 [Test]、UI 分类、exit code = 失败数）
 │   ├── TetrisTests/            # 单元测试用例（棋盘 / 计分 / 方块 / UI）
 │   ├── run.sh                  # 五步流水线：备目录 → 编译 → 单测 → 像素探针 → 汇总
-│   ├── capture.sh              # 生成 README 截图（驱动真实程序自动对局）
+│   ├── capture.sh              # 生成 README 截图（`capture.sh` 中文 / `capture.sh en` 英文）
 │   └── tools/                  # 像素探针 / 回归探针 / 截图探针
 ├── .github/workflows/ci.yml    # GitHub Actions（windows-latest，跑 run.sh --skip-ui）
-├── img/                        # README 截图（由 tests/capture.sh 生成）
+├── img/                        # README 截图（中文界面，由 tests/capture.sh 生成）
+├── img/en/                     # 英文界面截图（由 tests/capture.sh en 生成）
 ├── AGENTS.md                   # 面向 AI Agent 的项目工作指引（构建 / 编码 / 验证）
 ├── README.md                   # 本文件（简体中文）
 ├── README.en.md                # English README
@@ -179,8 +200,8 @@ Block (数据)
 
 | 入口 | 命令 | 实际覆盖 |
 | --- | --- | --- |
-| CI | `bash tests/run.sh --skip-ui` | 62 个逻辑用例 + 2 个像素探针 |
-| 本地完整 | `bash tests/run.sh` | 76 个用例（含 14 个 UI 用例）+ 2 个像素探针 |
+| CI | `bash tests/run.sh --skip-ui` | 72 个逻辑用例 + 2 个像素探针 |
+| 本地完整 | `bash tests/run.sh` | 86 个用例（含 14 个 UI 用例）+ 2 个像素探针 |
 
 CI 的 `windows-latest` runner 是 **session 0**，没有交互式桌面，所以涉及 `Form.Show()` 与消息循环的 14 条用例被整类跳过（靠 `tests/TetrisTests/UiTests.cs` 上的 `[Category("UI")]`）。像素探针两条入口都跑 —— 它们走 `DrawToBitmap` + 内存画布，不依赖桌面。
 

@@ -89,13 +89,13 @@
             this.welcomelabel.AutoSize = false;
             this.welcomelabel.BackColor = System.Drawing.Color.Transparent;
             this.welcomelabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.welcomelabel.Font = new System.Drawing.Font("微软雅黑", 15F);
+            this.welcomelabel.Font = new System.Drawing.Font(owlgame.Strings.UiFont, 15F);
             this.welcomelabel.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(150)))), ((int)(((byte)(200)))), ((int)(((byte)(255)))));
             this.welcomelabel.Location = new System.Drawing.Point(0, 0);
             this.welcomelabel.Name = "welcomelabel";
             this.welcomelabel.Size = new System.Drawing.Size(220, 388);
             this.welcomelabel.TabIndex = 0;
-            this.welcomelabel.Text = "欢迎尝试游戏";
+            this.welcomelabel.Text = owlgame.Strings.Welcome;
             this.welcomelabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             //
             // previewCard
@@ -113,13 +113,13 @@
             //
             this.previewTitle.AutoSize = true;
             this.previewTitle.BackColor = System.Drawing.Color.Transparent;
-            this.previewTitle.Font = new System.Drawing.Font("微软雅黑", 8.5F);
+            this.previewTitle.Font = new System.Drawing.Font(owlgame.Strings.UiFont, 8.5F);
             this.previewTitle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(130)))), ((int)(((byte)(130)))), ((int)(((byte)(140)))));
             this.previewTitle.Location = new System.Drawing.Point(12, 10);
             this.previewTitle.Name = "previewTitle";
             this.previewTitle.Size = new System.Drawing.Size(44, 16);
             this.previewTitle.TabIndex = 0;
-            this.previewTitle.Text = "下一个";
+            this.previewTitle.Text = owlgame.Strings.PreviewTitle;
             //
             // proimg
             //
@@ -151,13 +151,13 @@
             //
             this.controlTitle.AutoSize = true;
             this.controlTitle.BackColor = System.Drawing.Color.Transparent;
-            this.controlTitle.Font = new System.Drawing.Font("微软雅黑", 8.5F);
+            this.controlTitle.Font = new System.Drawing.Font(owlgame.Strings.UiFont, 8.5F);
             this.controlTitle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(130)))), ((int)(((byte)(130)))), ((int)(((byte)(140)))));
             this.controlTitle.Location = new System.Drawing.Point(12, 10);
             this.controlTitle.Name = "controlTitle";
             this.controlTitle.Size = new System.Drawing.Size(52, 16);
             this.controlTitle.TabIndex = 0;
-            this.controlTitle.Text = "游戏控制";
+            this.controlTitle.Text = owlgame.Strings.ControlTitle;
             //
             // buttonset
             //
@@ -166,13 +166,13 @@
             this.buttonset.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(228)))), ((int)(((byte)(228)))), ((int)(((byte)(236)))));
             this.buttonset.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(243)))), ((int)(((byte)(243)))), ((int)(((byte)(248)))));
             this.buttonset.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.buttonset.Font = new System.Drawing.Font("微软雅黑", 9F);
+            this.buttonset.Font = new System.Drawing.Font(owlgame.Strings.UiFont, 9F);
             this.buttonset.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(48)))), ((int)(((byte)(58)))));
             this.buttonset.Location = new System.Drawing.Point(12, 34);
             this.buttonset.Name = "buttonset";
             this.buttonset.Size = new System.Drawing.Size(88, 34);
             this.buttonset.TabIndex = 1;
-            this.buttonset.Text = "说明(&S)";
+            this.buttonset.Text = owlgame.Strings.HelpButton;
             this.buttonset.UseVisualStyleBackColor = false;
             this.buttonset.Click += new System.EventHandler(this.buttonset_Click);
             //
@@ -183,13 +183,13 @@
             this.buttonstart.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(84)))), ((int)(((byte)(170)))));
             this.buttonstart.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(78)))), ((int)(((byte)(124)))), ((int)(((byte)(235)))));
             this.buttonstart.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.buttonstart.Font = new System.Drawing.Font("微软雅黑", 9F);
+            this.buttonstart.Font = new System.Drawing.Font(owlgame.Strings.UiFont, 9F);
             this.buttonstart.ForeColor = System.Drawing.Color.White;
             this.buttonstart.Location = new System.Drawing.Point(12, 78);
             this.buttonstart.Name = "buttonstart";
             this.buttonstart.Size = new System.Drawing.Size(88, 34);
             this.buttonstart.TabIndex = 2;
-            this.buttonstart.Text = "开始(&E)";
+            this.buttonstart.Text = owlgame.Strings.StartButton;
             this.buttonstart.UseVisualStyleBackColor = false;
             this.buttonstart.Click += new System.EventHandler(this.buttonstart_Click);
             //
@@ -200,13 +200,13 @@
             this.buttonback.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(228)))), ((int)(((byte)(228)))), ((int)(((byte)(236)))));
             this.buttonback.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(243)))), ((int)(((byte)(243)))), ((int)(((byte)(248)))));
             this.buttonback.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.buttonback.Font = new System.Drawing.Font("微软雅黑", 9F);
+            this.buttonback.Font = new System.Drawing.Font(owlgame.Strings.UiFont, 9F);
             this.buttonback.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(48)))), ((int)(((byte)(58)))));
             this.buttonback.Location = new System.Drawing.Point(12, 122);
             this.buttonback.Name = "buttonback";
             this.buttonback.Size = new System.Drawing.Size(88, 34);
             this.buttonback.TabIndex = 3;
-            this.buttonback.Text = "重玩(&O)";
+            this.buttonback.Text = owlgame.Strings.RestartButton;
             this.buttonback.UseVisualStyleBackColor = false;
             this.buttonback.Click += new System.EventHandler(this.buttonback_Click);
             //
@@ -217,13 +217,13 @@
             this.buttonexit.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(228)))), ((int)(((byte)(228)))), ((int)(((byte)(236)))));
             this.buttonexit.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(243)))), ((int)(((byte)(243)))), ((int)(((byte)(248)))));
             this.buttonexit.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.buttonexit.Font = new System.Drawing.Font("微软雅黑", 9F);
+            this.buttonexit.Font = new System.Drawing.Font(owlgame.Strings.UiFont, 9F);
             this.buttonexit.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(48)))), ((int)(((byte)(58)))));
             this.buttonexit.Location = new System.Drawing.Point(12, 166);
             this.buttonexit.Name = "buttonexit";
             this.buttonexit.Size = new System.Drawing.Size(88, 34);
             this.buttonexit.TabIndex = 4;
-            this.buttonexit.Text = "退出(&X)";
+            this.buttonexit.Text = owlgame.Strings.ExitButton;
             this.buttonexit.UseVisualStyleBackColor = false;
             this.buttonexit.Click += new System.EventHandler(this.buttonexit_Click);
             //
@@ -231,7 +231,7 @@
             //
             this.myweb.AutoSize = true;
             this.myweb.BackColor = System.Drawing.Color.Transparent;
-            this.myweb.Font = new System.Drawing.Font("微软雅黑", 8F);
+            this.myweb.Font = new System.Drawing.Font(owlgame.Strings.UiFont, 8F);
             this.myweb.LinkBehavior = System.Windows.Forms.LinkBehavior.HoverUnderline;
             this.myweb.LinkColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(140)))), ((int)(((byte)(150)))));
             this.myweb.Location = new System.Drawing.Point(12, 240);
@@ -240,7 +240,7 @@
             this.myweb.TabIndex = 5;
             this.myweb.TabStop = true;
             this.myweb.Tag = "www.lingjie.net";
-            this.myweb.Text = "owlman 制作";
+            this.myweb.Text = owlgame.Strings.Credit;
             this.myweb.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.myweb_LinkClicked);
             //
             // scoreCard
@@ -263,19 +263,19 @@
             //
             this.scoreCaption.AutoSize = true;
             this.scoreCaption.BackColor = System.Drawing.Color.Transparent;
-            this.scoreCaption.Font = new System.Drawing.Font("微软雅黑", 8.5F);
+            this.scoreCaption.Font = new System.Drawing.Font(owlgame.Strings.UiFont, 8.5F);
             this.scoreCaption.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(130)))), ((int)(((byte)(130)))), ((int)(((byte)(140)))));
             this.scoreCaption.Location = new System.Drawing.Point(14, 14);
             this.scoreCaption.Name = "scoreCaption";
             this.scoreCaption.Size = new System.Drawing.Size(30, 16);
             this.scoreCaption.TabIndex = 0;
-            this.scoreCaption.Text = "分数";
+            this.scoreCaption.Text = owlgame.Strings.ScoreCaption;
             //
             // scoreValue
             //
             this.scoreValue.AutoSize = true;
             this.scoreValue.BackColor = System.Drawing.Color.Transparent;
-            this.scoreValue.Font = new System.Drawing.Font("微软雅黑", 22F, System.Drawing.FontStyle.Bold);
+            this.scoreValue.Font = new System.Drawing.Font(owlgame.Strings.UiFont, 22F, System.Drawing.FontStyle.Bold);
             this.scoreValue.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(36)))), ((int)(((byte)(36)))), ((int)(((byte)(46)))));
             this.scoreValue.Location = new System.Drawing.Point(11, 34);
             this.scoreValue.Name = "scoreValue";
@@ -287,19 +287,19 @@
             //
             this.levelCaption.AutoSize = true;
             this.levelCaption.BackColor = System.Drawing.Color.Transparent;
-            this.levelCaption.Font = new System.Drawing.Font("微软雅黑", 8.5F);
+            this.levelCaption.Font = new System.Drawing.Font(owlgame.Strings.UiFont, 8.5F);
             this.levelCaption.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(130)))), ((int)(((byte)(130)))), ((int)(((byte)(140)))));
             this.levelCaption.Location = new System.Drawing.Point(14, 128);
             this.levelCaption.Name = "levelCaption";
             this.levelCaption.Size = new System.Drawing.Size(30, 16);
             this.levelCaption.TabIndex = 2;
-            this.levelCaption.Text = "等级";
+            this.levelCaption.Text = owlgame.Strings.LevelCaption;
             //
             // levelValue
             //
             this.levelValue.AutoSize = true;
             this.levelValue.BackColor = System.Drawing.Color.Transparent;
-            this.levelValue.Font = new System.Drawing.Font("微软雅黑", 22F, System.Drawing.FontStyle.Bold);
+            this.levelValue.Font = new System.Drawing.Font(owlgame.Strings.UiFont, 22F, System.Drawing.FontStyle.Bold);
             this.levelValue.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(36)))), ((int)(((byte)(36)))), ((int)(((byte)(46)))));
             this.levelValue.Location = new System.Drawing.Point(11, 148);
             this.levelValue.Name = "levelValue";
@@ -311,19 +311,19 @@
             //
             this.linesCaption.AutoSize = true;
             this.linesCaption.BackColor = System.Drawing.Color.Transparent;
-            this.linesCaption.Font = new System.Drawing.Font("微软雅黑", 8.5F);
+            this.linesCaption.Font = new System.Drawing.Font(owlgame.Strings.UiFont, 8.5F);
             this.linesCaption.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(130)))), ((int)(((byte)(130)))), ((int)(((byte)(140)))));
             this.linesCaption.Location = new System.Drawing.Point(14, 242);
             this.linesCaption.Name = "linesCaption";
             this.linesCaption.Size = new System.Drawing.Size(30, 16);
             this.linesCaption.TabIndex = 4;
-            this.linesCaption.Text = "消行";
+            this.linesCaption.Text = owlgame.Strings.LinesCaption;
             //
             // linesValue
             //
             this.linesValue.AutoSize = true;
             this.linesValue.BackColor = System.Drawing.Color.Transparent;
-            this.linesValue.Font = new System.Drawing.Font("微软雅黑", 22F, System.Drawing.FontStyle.Bold);
+            this.linesValue.Font = new System.Drawing.Font(owlgame.Strings.UiFont, 22F, System.Drawing.FontStyle.Bold);
             this.linesValue.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(36)))), ((int)(((byte)(36)))), ((int)(((byte)(46)))));
             this.linesValue.Location = new System.Drawing.Point(11, 262);
             this.linesValue.Name = "linesValue";
@@ -354,12 +354,12 @@
             this.Controls.Add(this.controlCard);
             this.Controls.Add(this.previewCard);
             this.Controls.Add(this.gamewiew);
-            this.Font = new System.Drawing.Font("微软雅黑", 9F);
+            this.Font = new System.Drawing.Font(owlgame.Strings.UiFont, 9F);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.Name = "MainForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "俄罗斯方块";
+            this.Text = owlgame.Strings.MainTitle;
             this.Load += new System.EventHandler(this.MainForm_Load);
             this.gaizi.ResumeLayout(false);
             this.gamewiew.ResumeLayout(false);

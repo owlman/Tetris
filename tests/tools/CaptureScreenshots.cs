@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -226,6 +226,9 @@ class CaptureScreenshots
     static int Main(string[] args)
     {
         string outDir = args.Length > 0 ? args[0] : "img";
+        // The probe hosts the real assembly without running Program.Main,
+        // so it has to resolve the language itself (env var / OS culture).
+        owlgame.Strings.Configure(new string[0]);
         Directory.CreateDirectory(outDir);
 
         Application.EnableVisualStyles();

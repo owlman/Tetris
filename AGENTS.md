@@ -15,6 +15,7 @@
 - 消行有一段**淡出动画**（`flashTimer`，45 ms × 3 帧，alpha 235→165→95→25），动画期间 `gametimer` 暂停。
 - 界面为现代浅色卡片风格（2026-11 第 8 轮）：微软雅黑、扁平按钮、三张白色卡片（预览 / 控制 / 读数）；棋盘为深色无缝墙 + 带间隙方块。
 - 帮助窗体 `gamehelp` 同一套风格（白卡片 + 键帽样式 + 扁平按钮），由 `UiTests.HelpWindowMatchesTheModernStyle` 锁定；**新增任何窗体都请沿用这套配色与字体**。
+- 界面文案**中英双语**，默认跟随系统语言，可用 `--lang=` / `OWLGAME_LANG` 覆盖；见「界面文案与语言」一节。
 - 棋盘 20 列 × **35 行**，7 种方块，每种形状固定一种颜色。
   - 行数 = `rowNo * v.Height / v.Width` = `20 * 388 / 220` = **35**（整数除法）。旧文档写的 38 是错的。
   - 格子 11×11 像素（`bw = 220/20`，`bh = 388/35`）。
@@ -66,7 +67,8 @@
 Tetris/
 ├── owlgame/                 # 唯一的项目目录（项目名 MuscoviteBlock，程序集名 owlgame）
 │   ├── MuscoviteBlock.csproj # VS2005 时代的老式 csproj（Format 12.00，无 SDK-style）
-│   ├── Program.cs           # 入口：EnableVisualStyles + Run(new MainForm())
+│   ├── Program.cs           # 入口：解析 --lang / OWLGAME_LANG → Run(new MainForm())
+│   ├── Strings.cs           # **界面文案表**（中英双语）+ 语言解析 + 随语言切换的字体
 │   ├── MainForm.cs          # 主窗体逻辑（自绘派发的唯一入口）
 │   ├── MainForm.Designer.cs # 主窗体布局（设计器生成，勿手改）
 │   ├── GameBoard.cs         # **纯逻辑**：棋盘数据 + 移动/旋转/落子/消行/失败判定（不引用 WinForms）
@@ -77,6 +79,10 @@ Tetris/
 │   ├── Properties/          # AssemblyInfo / Resources / Settings
 │   ├── bin/Debug/           # 仅 owlgame.exe / owlgame.pdb 被跟踪（clone 即可运行）；vshost 已移出
 │   └── obj/                 # 构建中间产物，**已全部移出版本控制**并由 .gitignore 忽略
+├── tests/                   # 测试与探针（framework / TetrisTests / probes / tools / run.sh / capture.sh）
+├── .github/workflows/ci.yml  # GitHub Actions：windows-latest 跑 run.sh --skip-ui
+├── img/                     # README 截图（中文界面，由 tests/capture.sh 生成）
+├── img/en/                  # README 截图（英文界面，由 tests/capture.sh en 生成）
 ├── Backup/                  # 未跟踪：修复前的原始代码快照
 ├── Backup1/                 # 未跟踪：闪烁修复后的中间快照
 ├── temp/                    # 未跟踪：临时产物（backup_bin/ 存原版 exe）
@@ -89,7 +95,9 @@ Tetris/
 └── UpgradeLog.htm(2)       # VS 升级迁移报告，噪声文件
 ```
 
-**易踩的坑**：`owlgame/bin/Debug/owlgame.exe` 是**被版本控制跟踪的**。用户有时直接双击这个旧二进制运行，导致"改了代码却没效果"。**任何源码改动后必须重新编译并覆盖它**（见"构建"一节）。
+**易踩的坑（1）**：`owlgame/MuscoviteBlock.csproj` 曾长期与实际文件名不符 —— 第 3 轮把 `block.cs` / `gamecontroller.cs` 改成 PascalCase 时漏改 csproj，拆出的 `GameBoard.cs` 也没加进去；Windows 大小写不敏感 + `csc *.cs` 通配掩盖了问题，只有用 VS 打开才会暴露。2026-11 第 12 轮已修正（并追加 `Strings.cs`）。**新增 / 改名源文件时同步改 csproj。**
+
+**易踩的坑（2）**：`owlgame/bin/Debug/owlgame.exe` 是**被版本控制跟踪的**。用户有时直接双击这个旧二进制运行，导致"改了代码却没效果"。**任何源码改动后必须重新编译并覆盖它**（见"构建"一节）。
 
 ---
 
@@ -217,6 +225,16 @@ Block (数据 + 形状表)
 
 **为什么这样拆**：`GameBoard` 不依赖 WinForms，规则可以直接 new 出来断言（`Round1Regression` 现在就是这么测消行与边界），不必再靠反射掏 `controller` 的私有字段。
 
+### 界面文案与语言（第 12 轮）
+
+- **所有面向用户的字符串都在 `owlgame/Strings.cs`，不要在 Designer 里再写中文字面量**。新增文案 = 在那张表加一个 `T("中文", "English")` 属性，然后在 Designer / 代码里引用 `owlgame.Strings.Xxx`。
+- 语言解析链（`Strings.Configure`，顺序即优先级）：`--lang=xx` 命令行 → `OWLGAME_LANG` 环境变量 → `CultureInfo.CurrentUICulture`（`zh` → Chinese，其它 → English）。`Program.Main(string[] args)` 的**第一行**就是 `Strings.Configure(args);`。
+- **不支持运行时切换语言**：所有标签都在窗体构造函数里取值，切换要遍历控件树重排布局，本项目没这个需求。因此 `Strings.current` 的静态初值是 `Chinese`，测试进程不调 `Configure` 就一直是中文。
+- **字体也来自 `Strings.UiFont`**（zh = `微软雅黑`，en = `Segoe UI`）。Designer 里写的是 `new System.Drawing.Font(owlgame.Strings.UiFont, 15F, ...)`；直接改回硬编码字体名会让英文界面继续用雅黑渲染拉丁文。
+- **拿按钮文案做状态判断的地方必须引用 `Strings.*`**：`buttonstart_Click` 靠 `buttonstart.Text` 在「开始/停止」间分流，把 `Strings.StartButton` 写死在 Designer、判断处写死中文字符串，会让英文界面点了没反应。
+- `Strings.GameOver(int score)` 是唯一带参数的文案（覆盖层显示「你失败了… 分数 N」/「Game over - score N」）。
+- 截图：`bash tests/capture.sh` → `img/`（中文），`bash tests/capture.sh en` → `img/en/`（英文）；语言经 `OWLGAME_LANG` 传给探针，探针自己调 `Strings.Configure(new string[0])`（它不跑 `Program.Main`）。
+
 ### 关键状态约定
 
 - **`controller == null` 是"未开局"哨兵**。`MainForm` 里所有 Paint 分支都靠它判断要不要画。改了 Paint 逻辑要连带检查这个分支（见下面 proimg 的教训）。
@@ -259,8 +277,9 @@ Block (数据 + 形状表)
 
 > 📁 **测试已工程化**，一键运行：`bash tests/run.sh`（`--skip-ui` / `--filter` / `--list`）
 > - `tests/framework/` —— 自制测试框架（`[Test]` / `[TestCase]` / `[Category]` / `Assert` / 反射运行器），零依赖、C# 5 兼容
-> - `tests/TetrisTests/` —— 57 个用例：`BlockTests` / `GameBoardTests` / `ScoreTests` / `UiTests`
+> - `tests/TetrisTests/` —— 86 个用例：`BlockTests` / `GameBoardTests` / `ScoreTests` / `StringsTests` / `UiTests`
 > - `tests/probes/` —— 像素探针，输出基线数字（不是 PASS/FAIL）：`Round2Regression`（残影逐像素比对、GDI 句柄）、`PixelSmoke`（墙体守恒）
+> - README 截图：`bash tests/capture.sh`（中文 → `img/`）、`bash tests/capture.sh en`（英文 → `img/en/`）
 >
 > 逻辑用例直接 `new GameBoard(35)`，不要反射掏 `GameController` 的私有字段。UI 用例标 `[Category("UI")]`，headless 环境用 `--skip-ui` 跳过。脚本、基线、编写约定见 `tests/README.md`。
 
@@ -374,4 +393,6 @@ after restart: gray=17200 colored=400 navy=67760
 | `mainForm` 里 `welcomelabel` 覆盖整个棋盘 | `gaizi` 覆盖层在开局/结束时 `Show()` |
 | `README` 只有一句话且以"、"结尾 | 原文如此，写于 2006 年，作者未写完 |
 | `Backup/` 与 `Backup1/` 存在 | 修复过程中的手工快照，非项目组成部分 |
+| Designer 里写 `new Font(owlgame.Strings.UiFont, …)` 而不是字体名 | 字体随语言变（雅黑 / Segoe UI），硬编码字体名会让英文界面观感很差 |
+| 界面语言只能靠命令行 / 环境变量定，游戏装不下来 | 有意为之：文案在窗体构造时一次性读取，运行时不切换 |
 | `owlgame/bin/Debug/` 仍跟踪 exe 与 pdb | 老项目惯例，clone 下来双击即可运行；`obj/` 与 `vshost` 已移出（第 4 轮） |
